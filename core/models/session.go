@@ -144,6 +144,26 @@ type SessionStats struct {
 	LastReconnectAt *time.Time `json:"last_reconnect_at,omitempty" db:"last_reconnect_at"`
 }
 
+// TunnelSession represents a database model for tunnel sessions
+type TunnelSession struct {
+	ID               uint           `json:"id" gorm:"primaryKey"`
+	Status           SessionStatus  `json:"status" gorm:"not null;default:'pending'"`
+	StartTime        *time.Time     `json:"start_time,omitempty"`
+	EndTime          *time.Time     `json:"end_time,omitempty"`
+	ErrorMessage     string         `json:"error_message,omitempty" gorm:"type:text"`
+	DataTransferred  int64          `json:"data_transferred" gorm:"default:0"`
+	PID              *int           `json:"pid,omitempty"`
+	LocalAddress     string         `json:"local_address,omitempty" gorm:"size:255"`
+	RemoteAddress    string         `json:"remote_address,omitempty" gorm:"size:255"`
+	CreatedAt        time.Time      `json:"created_at"`
+	UpdatedAt        time.Time      `json:"updated_at"`
+	DeletedAt        *time.Time     `json:"deleted_at,omitempty" gorm:"index"`
+	
+	// Foreign keys - will be updated when we integrate with new models
+	HostID           uint           `json:"host_id" gorm:"not null;index"`
+	PortForwardID    uint           `json:"port_forward_id" gorm:"not null;index"`
+}
+
 // Rule represents a forwarding rule template
 type Rule struct {
 	ID          string    `json:"id" db:"id"`

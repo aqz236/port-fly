@@ -35,11 +35,11 @@ func DefaultPostgresConfig() StorageConfig {
 		Username: "postgres",
 		Password: "",
 		Options: map[string]string{
-			"sslmode":         "disable",
-			"timezone":        "UTC",
-			"log_level":       "warn",
-			"max_open_conns":  "25",
-			"max_idle_conns":  "10",
+			"sslmode":        "disable",
+			"timezone":       "UTC",
+			"log_level":      "warn",
+			"max_open_conns": "25",
+			"max_idle_conns": "10",
 		},
 	}
 }
@@ -54,12 +54,12 @@ func DefaultMySQLConfig() StorageConfig {
 		Username: "root",
 		Password: "",
 		Options: map[string]string{
-			"charset":         "utf8mb4",
-			"parseTime":       "True",
-			"loc":             "Local",
-			"log_level":       "warn",
-			"max_open_conns":  "25",
-			"max_idle_conns":  "10",
+			"charset":        "utf8mb4",
+			"parseTime":      "True",
+			"loc":            "Local",
+			"log_level":      "warn",
+			"max_open_conns": "25",
+			"max_idle_conns": "10",
 		},
 	}
 }
@@ -69,7 +69,7 @@ func ValidateConfig(config StorageConfig) error {
 	if config.Type == "" {
 		return fmt.Errorf("storage type is required")
 	}
-	
+
 	switch strings.ToLower(config.Type) {
 	case string(StorageTypeSQLite):
 		if config.Database == "" {
@@ -88,6 +88,6 @@ func ValidateConfig(config StorageConfig) error {
 	default:
 		return fmt.Errorf("unsupported storage type: %s", config.Type)
 	}
-	
+
 	return nil
 }

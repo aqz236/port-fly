@@ -60,23 +60,6 @@ func (s *SQLiteStorage) Initialize() error {
 		return fmt.Errorf("failed to connect to SQLite database: %w", err)
 	}
 	
-	// Configure SQLite settings
-	sqlDB, err := db.DB()
-	if err != nil {
-		return fmt.Errorf("failed to get underlying sql.DB: %w", err)
-	}
-	
-	// Set SQLite pragmas
-	if _, err := sqlDB.Exec("PRAGMA foreign_keys = ON"); err != nil {
-		return fmt.Errorf("failed to enable foreign keys: %w", err)
-	}
-	if _, err := sqlDB.Exec("PRAGMA journal_mode = WAL"); err != nil {
-		return fmt.Errorf("failed to set WAL mode: %w", err)
-	}
-	if _, err := sqlDB.Exec("PRAGMA synchronous = NORMAL"); err != nil {
-		return fmt.Errorf("failed to set synchronous mode: %w", err)
-	}
-	
 	s.db = db
 	return nil
 }
@@ -101,7 +84,7 @@ func (s *SQLiteStorage) Health() error {
 	
 	sqlDB, err := s.db.DB()
 	if err != nil {
-		return fmt.Errorf("failed to get underlying sql.DB: %w", err)
+		return err
 	}
 	
 	return sqlDB.Ping()
@@ -110,44 +93,144 @@ func (s *SQLiteStorage) Health() error {
 // Migrate runs database migrations
 func (s *SQLiteStorage) Migrate() error {
 	return s.db.AutoMigrate(
-		&models.HostGroup{},
+		&models.Project{},
+		&models.Group{},
 		&models.Host{},
-		&models.PortGroup{},
 		&models.PortForward{},
 		&models.TunnelSession{},
 	)
 }
 
-// Host Groups
+// ===== Project Operations =====
 
-func (s *SQLiteStorage) CreateHostGroup(ctx context.Context, group *models.HostGroup) error {
+func (s *SQLiteStorage) CreateProject(ctx context.Context, project *models.Project) error {
+	return s.db.WithContext(ctx).Create(project).Error
+}
+
+func (s *SQLiteStorage) GetProject(ctx context.Context, id uint) (*models.Project, error) {
+	var project models.Project
+	err := s.db.WithContext(ctx).Preload("Groups").First(&project, id).Error
+	if err != nil {
+		return nil, err
+	}
+	return &project, nil
+}
+
+func (s *SQLiteStorage) GetProjects(ctx context.Context) ([]models.Project, error) {
+	var projects []models.Project
+	err := s.db.WithContext(ctx).Preload("Groups").Find(&projects).Error
+	return projects, err
+}
+
+func (s *SQLiteStorage) UpdateProject(ctx context.Context, project *models.Project) error {
+	return s.db.WithContext(ctx).Save(project).Error
+}
+
+func (s *SQLiteStorage) DeleteProject(ctx context.Context, id uint) error {
+	return s.db.WithContext(ctx).Delete(&models.Project{}, id).Error
+}
+
+func (s *SQLiteStorage) GetProjectStats(ctx context.Context, projectID uint) (*models.ProjectStats, error) {
+	var stats models.ProjectStats
+	
+	// Count groups
+	var groupCount int64
+	s.db.WithContext(ctx).Model(&models.Group{}).Where("project_id = ?", projectID).Count(&groupCount)
+	stats.TotalGroups = int(groupCount)
+	
+	// Count hosts in all groups of this project
+	var hostCount int64
+	s.db.WithContext(ctx).Table("hosts").
+		Joins("JOIN groups ON hosts.group_id = groups.id").
+		Where("groups.project_id = ?", projectID).
+		Count(&hostCount)
+	stats.TotalHosts = int(hostCount)
+	
+	// Count port forwards in all groups of this project
+	var portCount int64
+	s.db.WithContext(ctx).Table("port_forwards").
+		Joins("JOIN groups ON port_forwards.group_id = groups.id").
+		Where("groups.project_id = ?", projectID).
+		Count(&portCount)
+	stats.TotalPorts = int(portCount)
+	
+	// Count active tunnels
+	var tunnelCount int64
+	s.db.WithContext(ctx).Table("tunnel_sessions").
+		Joins("JOIN port_forwards ON tunnel_sessions.port_forward_id = port_forwards.id").
+		Joins("JOIN groups ON port_forwards.group_id = groups.id").
+		Where("groups.project_id = ? AND tunnel_sessions.status = ?", projectID, "active").
+		Count(&tunnelCount)
+	stats.ActiveTunnels = int(tunnelCount)
+	
+	return &stats, nil
+}
+
+// ===== Group Operations =====
+
+func (s *SQLiteStorage) CreateGroup(ctx context.Context, group *models.Group) error {
 	return s.db.WithContext(ctx).Create(group).Error
 }
 
-func (s *SQLiteStorage) GetHostGroup(ctx context.Context, id uint) (*models.HostGroup, error) {
-	var group models.HostGroup
-	err := s.db.WithContext(ctx).Preload("Hosts").First(&group, id).Error
+func (s *SQLiteStorage) GetGroup(ctx context.Context, id uint) (*models.Group, error) {
+	var group models.Group
+	err := s.db.WithContext(ctx).Preload("Project").Preload("Hosts").Preload("PortForwards").First(&group, id).Error
 	if err != nil {
 		return nil, err
 	}
 	return &group, nil
 }
 
-func (s *SQLiteStorage) GetHostGroups(ctx context.Context) ([]models.HostGroup, error) {
-	var groups []models.HostGroup
-	err := s.db.WithContext(ctx).Preload("Hosts").Find(&groups).Error
+func (s *SQLiteStorage) GetGroups(ctx context.Context) ([]models.Group, error) {
+	var groups []models.Group
+	err := s.db.WithContext(ctx).Preload("Project").Preload("Hosts").Preload("PortForwards").Find(&groups).Error
 	return groups, err
 }
 
-func (s *SQLiteStorage) UpdateHostGroup(ctx context.Context, group *models.HostGroup) error {
+func (s *SQLiteStorage) GetGroupsByProject(ctx context.Context, projectID uint) ([]models.Group, error) {
+	var groups []models.Group
+	err := s.db.WithContext(ctx).Preload("Hosts").Preload("PortForwards").Where("project_id = ?", projectID).Find(&groups).Error
+	return groups, err
+}
+
+func (s *SQLiteStorage) UpdateGroup(ctx context.Context, group *models.Group) error {
 	return s.db.WithContext(ctx).Save(group).Error
 }
 
-func (s *SQLiteStorage) DeleteHostGroup(ctx context.Context, id uint) error {
-	return s.db.WithContext(ctx).Delete(&models.HostGroup{}, id).Error
+func (s *SQLiteStorage) DeleteGroup(ctx context.Context, id uint) error {
+	return s.db.WithContext(ctx).Delete(&models.Group{}, id).Error
 }
 
-// Hosts
+func (s *SQLiteStorage) GetGroupStats(ctx context.Context, groupID uint) (*models.GroupStats, error) {
+	var stats models.GroupStats
+	
+	// Count hosts
+	var hostCount int64
+	s.db.WithContext(ctx).Model(&models.Host{}).Where("group_id = ?", groupID).Count(&hostCount)
+	stats.TotalHosts = int(hostCount)
+	
+	// Count port forwards
+	var portCount int64
+	s.db.WithContext(ctx).Model(&models.PortForward{}).Where("group_id = ?", groupID).Count(&portCount)
+	stats.TotalPorts = int(portCount)
+	
+	// Count connected hosts
+	var connectedCount int64
+	s.db.WithContext(ctx).Model(&models.Host{}).Where("group_id = ? AND status = ?", groupID, "connected").Count(&connectedCount)
+	stats.ConnectedHosts = int(connectedCount)
+	
+	// Count active tunnels
+	var tunnelCount int64
+	s.db.WithContext(ctx).Table("tunnel_sessions").
+		Joins("JOIN port_forwards ON tunnel_sessions.port_forward_id = port_forwards.id").
+		Where("port_forwards.group_id = ? AND tunnel_sessions.status = ?", groupID, "active").
+		Count(&tunnelCount)
+	stats.ActiveTunnels = int(tunnelCount)
+	
+	return &stats, nil
+}
+
+// ===== Host Operations =====
 
 func (s *SQLiteStorage) CreateHost(ctx context.Context, host *models.Host) error {
 	return s.db.WithContext(ctx).Create(host).Error
@@ -155,7 +238,7 @@ func (s *SQLiteStorage) CreateHost(ctx context.Context, host *models.Host) error
 
 func (s *SQLiteStorage) GetHost(ctx context.Context, id uint) (*models.Host, error) {
 	var host models.Host
-	err := s.db.WithContext(ctx).Preload("HostGroup").Preload("PortForwards").First(&host, id).Error
+	err := s.db.WithContext(ctx).Preload("Group").Preload("PortForwards").First(&host, id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -164,13 +247,13 @@ func (s *SQLiteStorage) GetHost(ctx context.Context, id uint) (*models.Host, err
 
 func (s *SQLiteStorage) GetHosts(ctx context.Context) ([]models.Host, error) {
 	var hosts []models.Host
-	err := s.db.WithContext(ctx).Preload("HostGroup").Preload("PortForwards").Find(&hosts).Error
+	err := s.db.WithContext(ctx).Preload("Group").Find(&hosts).Error
 	return hosts, err
 }
 
 func (s *SQLiteStorage) GetHostsByGroup(ctx context.Context, groupID uint) ([]models.Host, error) {
 	var hosts []models.Host
-	err := s.db.WithContext(ctx).Preload("HostGroup").Preload("PortForwards").Where("host_group_id = ?", groupID).Find(&hosts).Error
+	err := s.db.WithContext(ctx).Where("group_id = ?", groupID).Find(&hosts).Error
 	return hosts, err
 }
 
@@ -182,36 +265,36 @@ func (s *SQLiteStorage) DeleteHost(ctx context.Context, id uint) error {
 	return s.db.WithContext(ctx).Delete(&models.Host{}, id).Error
 }
 
-// Port Groups
-
-func (s *SQLiteStorage) CreatePortGroup(ctx context.Context, group *models.PortGroup) error {
-	return s.db.WithContext(ctx).Create(group).Error
-}
-
-func (s *SQLiteStorage) GetPortGroup(ctx context.Context, id uint) (*models.PortGroup, error) {
-	var group models.PortGroup
-	err := s.db.WithContext(ctx).Preload("PortForwards").Preload("PortForwards.Host").First(&group, id).Error
-	if err != nil {
+func (s *SQLiteStorage) GetHostStats(ctx context.Context, hostID uint) (*models.HostStats, error) {
+	var stats models.HostStats
+	
+	// Get host info
+	var host models.Host
+	if err := s.db.WithContext(ctx).First(&host, hostID).Error; err != nil {
 		return nil, err
 	}
-	return &group, nil
+	
+	stats.TotalConnections = host.ConnectionCount
+	
+	// Count active tunnels
+	var tunnelCount int64
+	s.db.WithContext(ctx).Model(&models.TunnelSession{}).Where("host_id = ? AND status = ?", hostID, "active").Count(&tunnelCount)
+	stats.ActiveTunnels = int(tunnelCount)
+	
+	// Calculate uptime percentage (simplified)
+	stats.UptimePercentage = 95.0 // TODO: implement real calculation
+	
+	return &stats, nil
 }
 
-func (s *SQLiteStorage) GetPortGroups(ctx context.Context) ([]models.PortGroup, error) {
-	var groups []models.PortGroup
-	err := s.db.WithContext(ctx).Preload("PortForwards").Preload("PortForwards.Host").Find(&groups).Error
-	return groups, err
+func (s *SQLiteStorage) SearchHosts(ctx context.Context, query string) ([]models.Host, error) {
+	var hosts []models.Host
+	searchPattern := "%" + query + "%"
+	err := s.db.WithContext(ctx).Preload("Group").Where("name LIKE ? OR hostname LIKE ? OR description LIKE ?", searchPattern, searchPattern, searchPattern).Find(&hosts).Error
+	return hosts, err
 }
 
-func (s *SQLiteStorage) UpdatePortGroup(ctx context.Context, group *models.PortGroup) error {
-	return s.db.WithContext(ctx).Save(group).Error
-}
-
-func (s *SQLiteStorage) DeletePortGroup(ctx context.Context, id uint) error {
-	return s.db.WithContext(ctx).Delete(&models.PortGroup{}, id).Error
-}
-
-// Port Forwards
+// ===== Port Forward Operations =====
 
 func (s *SQLiteStorage) CreatePortForward(ctx context.Context, portForward *models.PortForward) error {
 	return s.db.WithContext(ctx).Create(portForward).Error
@@ -219,7 +302,7 @@ func (s *SQLiteStorage) CreatePortForward(ctx context.Context, portForward *mode
 
 func (s *SQLiteStorage) GetPortForward(ctx context.Context, id uint) (*models.PortForward, error) {
 	var portForward models.PortForward
-	err := s.db.WithContext(ctx).Preload("Host").Preload("PortGroup").First(&portForward, id).Error
+	err := s.db.WithContext(ctx).Preload("Group").Preload("Host").First(&portForward, id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -228,19 +311,19 @@ func (s *SQLiteStorage) GetPortForward(ctx context.Context, id uint) (*models.Po
 
 func (s *SQLiteStorage) GetPortForwards(ctx context.Context) ([]models.PortForward, error) {
 	var portForwards []models.PortForward
-	err := s.db.WithContext(ctx).Preload("Host").Preload("PortGroup").Find(&portForwards).Error
+	err := s.db.WithContext(ctx).Preload("Group").Preload("Host").Find(&portForwards).Error
 	return portForwards, err
 }
 
 func (s *SQLiteStorage) GetPortForwardsByHost(ctx context.Context, hostID uint) ([]models.PortForward, error) {
 	var portForwards []models.PortForward
-	err := s.db.WithContext(ctx).Preload("Host").Preload("PortGroup").Where("host_id = ?", hostID).Find(&portForwards).Error
+	err := s.db.WithContext(ctx).Preload("Group").Where("host_id = ?", hostID).Find(&portForwards).Error
 	return portForwards, err
 }
 
 func (s *SQLiteStorage) GetPortForwardsByGroup(ctx context.Context, groupID uint) ([]models.PortForward, error) {
 	var portForwards []models.PortForward
-	err := s.db.WithContext(ctx).Preload("Host").Preload("PortGroup").Where("port_group_id = ?", groupID).Find(&portForwards).Error
+	err := s.db.WithContext(ctx).Preload("Host").Where("group_id = ?", groupID).Find(&portForwards).Error
 	return portForwards, err
 }
 
@@ -252,15 +335,41 @@ func (s *SQLiteStorage) DeletePortForward(ctx context.Context, id uint) error {
 	return s.db.WithContext(ctx).Delete(&models.PortForward{}, id).Error
 }
 
-// Tunnel Sessions
+func (s *SQLiteStorage) GetPortForwardStats(ctx context.Context, portForwardID uint) (*models.PortForwardStats, error) {
+	var stats models.PortForwardStats
+	
+	// Count total sessions
+	var totalCount int64
+	s.db.WithContext(ctx).Model(&models.TunnelSession{}).Where("port_forward_id = ?", portForwardID).Count(&totalCount)
+	stats.TotalSessions = int(totalCount)
+	
+	// Count active sessions
+	var activeCount int64
+	s.db.WithContext(ctx).Model(&models.TunnelSession{}).Where("port_forward_id = ? AND status = ?", portForwardID, "active").Count(&activeCount)
+	stats.ActiveSessions = int(activeCount)
+	
+	// Sum data transferred
+	s.db.WithContext(ctx).Model(&models.TunnelSession{}).Where("port_forward_id = ?", portForwardID).Select("COALESCE(SUM(data_transferred), 0)").Scan(&stats.TotalDataTransferred)
+	
+	return &stats, nil
+}
+
+func (s *SQLiteStorage) SearchPortForwards(ctx context.Context, query string) ([]models.PortForward, error) {
+	var portForwards []models.PortForward
+	searchPattern := "%" + query + "%"
+	err := s.db.WithContext(ctx).Preload("Group").Preload("Host").Where("name LIKE ? OR description LIKE ? OR remote_host LIKE ?", searchPattern, searchPattern, searchPattern).Find(&portForwards).Error
+	return portForwards, err
+}
+
+// ===== Tunnel Session Operations =====
 
 func (s *SQLiteStorage) CreateTunnelSession(ctx context.Context, session *models.TunnelSession) error {
 	return s.db.WithContext(ctx).Create(session).Error
 }
 
-func (s *SQLiteStorage) GetTunnelSession(ctx context.Context, id string) (*models.TunnelSession, error) {
+func (s *SQLiteStorage) GetTunnelSession(ctx context.Context, id uint) (*models.TunnelSession, error) {
 	var session models.TunnelSession
-	err := s.db.WithContext(ctx).Preload("Host").Preload("PortForward").Preload("PortGroup").First(&session, "id = ?", id).Error
+	err := s.db.WithContext(ctx).Preload("Host").Preload("PortForward").First(&session, id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -269,14 +378,13 @@ func (s *SQLiteStorage) GetTunnelSession(ctx context.Context, id string) (*model
 
 func (s *SQLiteStorage) GetTunnelSessions(ctx context.Context) ([]models.TunnelSession, error) {
 	var sessions []models.TunnelSession
-	err := s.db.WithContext(ctx).Preload("Host").Preload("PortForward").Preload("PortGroup").Find(&sessions).Error
+	err := s.db.WithContext(ctx).Preload("Host").Preload("PortForward").Find(&sessions).Error
 	return sessions, err
 }
 
 func (s *SQLiteStorage) GetActiveTunnelSessions(ctx context.Context) ([]models.TunnelSession, error) {
 	var sessions []models.TunnelSession
-	activeStates := []string{"connecting", "connected", "active"}
-	err := s.db.WithContext(ctx).Preload("Host").Preload("PortForward").Preload("PortGroup").Where("status IN ?", activeStates).Find(&sessions).Error
+	err := s.db.WithContext(ctx).Preload("Host").Preload("PortForward").Where("status = ?", "active").Find(&sessions).Error
 	return sessions, err
 }
 
@@ -284,73 +392,33 @@ func (s *SQLiteStorage) UpdateTunnelSession(ctx context.Context, session *models
 	return s.db.WithContext(ctx).Save(session).Error
 }
 
-func (s *SQLiteStorage) DeleteTunnelSession(ctx context.Context, id string) error {
-	return s.db.WithContext(ctx).Delete(&models.TunnelSession{}, "id = ?", id).Error
+func (s *SQLiteStorage) DeleteTunnelSession(ctx context.Context, id uint) error {
+	return s.db.WithContext(ctx).Delete(&models.TunnelSession{}, id).Error
 }
 
-// Statistics and Search
-
-func (s *SQLiteStorage) GetHostGroupStats(ctx context.Context, groupID uint) (map[string]interface{}, error) {
-	stats := make(map[string]interface{})
+func (s *SQLiteStorage) GetSessionStats(ctx context.Context) (*models.SessionStats, error) {
+	var stats models.SessionStats
 	
-	// Count hosts in group
-	var hostCount int64
-	s.db.WithContext(ctx).Model(&models.Host{}).Where("host_group_id = ?", groupID).Count(&hostCount)
-	stats["host_count"] = hostCount
+	// Count total connections
+	var totalCount int64
+	s.db.WithContext(ctx).Model(&models.TunnelSession{}).Count(&totalCount)
+	stats.TotalConnections = totalCount
 	
-	// Count port forwards for hosts in group
-	var portForwardCount int64
-	s.db.WithContext(ctx).Model(&models.PortForward{}).
-		Joins("JOIN hosts ON hosts.id = port_forwards.host_id").
-		Where("hosts.host_group_id = ?", groupID).
-		Count(&portForwardCount)
-	stats["port_forward_count"] = portForwardCount
+	// Count active connections
+	var activeCount int64
+	s.db.WithContext(ctx).Model(&models.TunnelSession{}).Where("status = ?", "active").Count(&activeCount)
+	stats.ActiveConnections = activeCount
 	
-	// Count active sessions for hosts in group
-	var activeSessionCount int64
-	activeStates := []string{"connecting", "connected", "active"}
-	s.db.WithContext(ctx).Model(&models.TunnelSession{}).
-		Joins("JOIN hosts ON hosts.id = tunnel_sessions.host_id").
-		Where("hosts.host_group_id = ? AND tunnel_sessions.status IN ?", groupID, activeStates).
-		Count(&activeSessionCount)
-	stats["active_session_count"] = activeSessionCount
+	// Count failed connections
+	var failedCount int64
+	s.db.WithContext(ctx).Model(&models.TunnelSession{}).Where("status = ?", "error").Count(&failedCount)
+	stats.FailedConnections = failedCount
 	
-	return stats, nil
-}
-
-func (s *SQLiteStorage) GetPortGroupStats(ctx context.Context, groupID uint) (map[string]interface{}, error) {
-	stats := make(map[string]interface{})
+	// Sum bytes sent and received (using data_transferred as total)
+	var totalTransferred int64
+	s.db.WithContext(ctx).Model(&models.TunnelSession{}).Select("COALESCE(SUM(data_transferred), 0)").Scan(&totalTransferred)
+	stats.BytesSent = totalTransferred / 2 // Simplified: assume half sent, half received
+	stats.BytesReceived = totalTransferred / 2
 	
-	// Count port forwards in group
-	var portForwardCount int64
-	s.db.WithContext(ctx).Model(&models.PortForward{}).Where("port_group_id = ?", groupID).Count(&portForwardCount)
-	stats["port_forward_count"] = portForwardCount
-	
-	// Count active sessions for port forwards in group
-	var activeSessionCount int64
-	activeStates := []string{"connecting", "connected", "active"}
-	s.db.WithContext(ctx).Model(&models.TunnelSession{}).Where("port_group_id = ? AND status IN ?", groupID, activeStates).Count(&activeSessionCount)
-	stats["active_session_count"] = activeSessionCount
-	
-	return stats, nil
-}
-
-func (s *SQLiteStorage) SearchHosts(ctx context.Context, query string) ([]models.Host, error) {
-	var hosts []models.Host
-	searchTerm := "%" + query + "%"
-	err := s.db.WithContext(ctx).Preload("HostGroup").Preload("PortForwards").
-		Where("name LIKE ? OR description LIKE ? OR hostname LIKE ? OR username LIKE ?", 
-			searchTerm, searchTerm, searchTerm, searchTerm).
-		Find(&hosts).Error
-	return hosts, err
-}
-
-func (s *SQLiteStorage) SearchPortForwards(ctx context.Context, query string) ([]models.PortForward, error) {
-	var portForwards []models.PortForward
-	searchTerm := "%" + query + "%"
-	err := s.db.WithContext(ctx).Preload("Host").Preload("PortGroup").
-		Where("name LIKE ? OR description LIKE ? OR remote_host LIKE ?", 
-			searchTerm, searchTerm, searchTerm).
-		Find(&portForwards).Error
-	return portForwards, err
+	return &stats, nil
 }

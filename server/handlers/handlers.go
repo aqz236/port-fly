@@ -13,7 +13,7 @@ import (
 	"github.com/aqz236/port-fly/server/storage"
 )
 
-// Handlers contains all HTTP handlers
+// Handlers contains all HTTP handlers for the new Project->Group->Resource architecture
 type Handlers struct {
 	storage        storage.StorageInterface
 	sessionManager *manager.SessionManager
@@ -51,16 +51,16 @@ func (h *Handlers) Health(c *gin.Context) {
 	c.JSON(http.StatusOK, Response{
 		Success: true,
 		Data: gin.H{
-			"status": "healthy",
+			"status":  "healthy",
 			"service": "portfly-api",
 		},
 	})
 }
 
-// Host Groups
+// ===== Project Operations =====
 
-func (h *Handlers) GetHostGroups(c *gin.Context) {
-	groups, err := h.storage.GetHostGroups(c.Request.Context())
+func (h *Handlers) GetProjects(c *gin.Context) {
+	projects, err := h.storage.GetProjects(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, Response{
 			Success: false,
@@ -71,13 +71,13 @@ func (h *Handlers) GetHostGroups(c *gin.Context) {
 
 	c.JSON(http.StatusOK, Response{
 		Success: true,
-		Data:    groups,
+		Data:    projects,
 	})
 }
 
-func (h *Handlers) CreateHostGroup(c *gin.Context) {
-	var group models.HostGroup
-	if err := c.ShouldBindJSON(&group); err != nil {
+func (h *Handlers) CreateProject(c *gin.Context) {
+	var project models.Project
+	if err := c.ShouldBindJSON(&project); err != nil {
 		c.JSON(http.StatusBadRequest, Response{
 			Success: false,
 			Error:   err.Error(),
@@ -85,7 +85,7 @@ func (h *Handlers) CreateHostGroup(c *gin.Context) {
 		return
 	}
 
-	if err := h.storage.CreateHostGroup(c.Request.Context(), &group); err != nil {
+	if err := h.storage.CreateProject(c.Request.Context(), &project); err != nil {
 		c.JSON(http.StatusInternalServerError, Response{
 			Success: false,
 			Error:   err.Error(),
@@ -95,47 +95,47 @@ func (h *Handlers) CreateHostGroup(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, Response{
 		Success: true,
-		Data:    group,
+		Data:    project,
 	})
 }
 
-func (h *Handlers) GetHostGroup(c *gin.Context) {
+func (h *Handlers) GetProject(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, Response{
 			Success: false,
-			Error:   "Invalid group ID",
+			Error:   "Invalid project ID",
 		})
 		return
 	}
 
-	group, err := h.storage.GetHostGroup(c.Request.Context(), uint(id))
+	project, err := h.storage.GetProject(c.Request.Context(), uint(id))
 	if err != nil {
 		c.JSON(http.StatusNotFound, Response{
 			Success: false,
-			Error:   "Host group not found",
+			Error:   "Project not found",
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, Response{
 		Success: true,
-		Data:    group,
+		Data:    project,
 	})
 }
 
-func (h *Handlers) UpdateHostGroup(c *gin.Context) {
+func (h *Handlers) UpdateProject(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, Response{
 			Success: false,
-			Error:   "Invalid group ID",
+			Error:   "Invalid project ID",
 		})
 		return
 	}
 
-	var group models.HostGroup
-	if err := c.ShouldBindJSON(&group); err != nil {
+	var project models.Project
+	if err := c.ShouldBindJSON(&project); err != nil {
 		c.JSON(http.StatusBadRequest, Response{
 			Success: false,
 			Error:   err.Error(),
@@ -143,8 +143,8 @@ func (h *Handlers) UpdateHostGroup(c *gin.Context) {
 		return
 	}
 
-	group.ID = uint(id)
-	if err := h.storage.UpdateHostGroup(c.Request.Context(), &group); err != nil {
+	project.ID = uint(id)
+	if err := h.storage.UpdateProject(c.Request.Context(), &project); err != nil {
 		c.JSON(http.StatusInternalServerError, Response{
 			Success: false,
 			Error:   err.Error(),
@@ -154,21 +154,21 @@ func (h *Handlers) UpdateHostGroup(c *gin.Context) {
 
 	c.JSON(http.StatusOK, Response{
 		Success: true,
-		Data:    group,
+		Data:    project,
 	})
 }
 
-func (h *Handlers) DeleteHostGroup(c *gin.Context) {
+func (h *Handlers) DeleteProject(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, Response{
 			Success: false,
-			Error:   "Invalid group ID",
+			Error:   "Invalid project ID",
 		})
 		return
 	}
 
-	if err := h.storage.DeleteHostGroup(c.Request.Context(), uint(id)); err != nil {
+	if err := h.storage.DeleteProject(c.Request.Context(), uint(id)); err != nil {
 		c.JSON(http.StatusInternalServerError, Response{
 			Success: false,
 			Error:   err.Error(),
@@ -178,21 +178,21 @@ func (h *Handlers) DeleteHostGroup(c *gin.Context) {
 
 	c.JSON(http.StatusOK, Response{
 		Success: true,
-		Message: "Host group deleted successfully",
+		Message: "Project deleted successfully",
 	})
 }
 
-func (h *Handlers) GetHostGroupStats(c *gin.Context) {
+func (h *Handlers) GetProjectStats(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, Response{
 			Success: false,
-			Error:   "Invalid group ID",
+			Error:   "Invalid project ID",
 		})
 		return
 	}
 
-	stats, err := h.storage.GetHostGroupStats(c.Request.Context(), uint(id))
+	stats, err := h.storage.GetProjectStats(c.Request.Context(), uint(id))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, Response{
 			Success: false,
@@ -207,10 +207,210 @@ func (h *Handlers) GetHostGroupStats(c *gin.Context) {
 	})
 }
 
-// Hosts
+// ===== Group Operations =====
+
+func (h *Handlers) GetGroups(c *gin.Context) {
+	groups, err := h.storage.GetGroups(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, Response{
+			Success: false,
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, Response{
+		Success: true,
+		Data:    groups,
+	})
+}
+
+func (h *Handlers) GetGroupsByProject(c *gin.Context) {
+	projectID, err := strconv.ParseUint(c.Param("projectId"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, Response{
+			Success: false,
+			Error:   "Invalid project ID",
+		})
+		return
+	}
+
+	groups, err := h.storage.GetGroupsByProject(c.Request.Context(), uint(projectID))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, Response{
+			Success: false,
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, Response{
+		Success: true,
+		Data:    groups,
+	})
+}
+
+func (h *Handlers) CreateGroup(c *gin.Context) {
+	var group models.Group
+	if err := c.ShouldBindJSON(&group); err != nil {
+		c.JSON(http.StatusBadRequest, Response{
+			Success: false,
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	if err := h.storage.CreateGroup(c.Request.Context(), &group); err != nil {
+		c.JSON(http.StatusInternalServerError, Response{
+			Success: false,
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusCreated, Response{
+		Success: true,
+		Data:    group,
+	})
+}
+
+func (h *Handlers) GetGroup(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, Response{
+			Success: false,
+			Error:   "Invalid group ID",
+		})
+		return
+	}
+
+	group, err := h.storage.GetGroup(c.Request.Context(), uint(id))
+	if err != nil {
+		c.JSON(http.StatusNotFound, Response{
+			Success: false,
+			Error:   "Group not found",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, Response{
+		Success: true,
+		Data:    group,
+	})
+}
+
+func (h *Handlers) UpdateGroup(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, Response{
+			Success: false,
+			Error:   "Invalid group ID",
+		})
+		return
+	}
+
+	var group models.Group
+	if err := c.ShouldBindJSON(&group); err != nil {
+		c.JSON(http.StatusBadRequest, Response{
+			Success: false,
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	group.ID = uint(id)
+	if err := h.storage.UpdateGroup(c.Request.Context(), &group); err != nil {
+		c.JSON(http.StatusInternalServerError, Response{
+			Success: false,
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, Response{
+		Success: true,
+		Data:    group,
+	})
+}
+
+func (h *Handlers) DeleteGroup(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, Response{
+			Success: false,
+			Error:   "Invalid group ID",
+		})
+		return
+	}
+
+	if err := h.storage.DeleteGroup(c.Request.Context(), uint(id)); err != nil {
+		c.JSON(http.StatusInternalServerError, Response{
+			Success: false,
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, Response{
+		Success: true,
+		Message: "Group deleted successfully",
+	})
+}
+
+func (h *Handlers) GetGroupStats(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, Response{
+			Success: false,
+			Error:   "Invalid group ID",
+		})
+		return
+	}
+
+	stats, err := h.storage.GetGroupStats(c.Request.Context(), uint(id))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, Response{
+			Success: false,
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, Response{
+		Success: true,
+		Data:    stats,
+	})
+}
+
+// ===== Host Operations =====
 
 func (h *Handlers) GetHosts(c *gin.Context) {
 	hosts, err := h.storage.GetHosts(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, Response{
+			Success: false,
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, Response{
+		Success: true,
+		Data:    hosts,
+	})
+}
+
+func (h *Handlers) GetHostsByGroup(c *gin.Context) {
+	groupID, err := strconv.ParseUint(c.Param("groupId"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, Response{
+			Success: false,
+			Error:   "Invalid group ID",
+		})
+		return
+	}
+
+	hosts, err := h.storage.GetHostsByGroup(c.Request.Context(), uint(groupID))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, Response{
 			Success: false,
@@ -332,6 +532,31 @@ func (h *Handlers) DeleteHost(c *gin.Context) {
 	})
 }
 
+func (h *Handlers) GetHostStats(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, Response{
+			Success: false,
+			Error:   "Invalid host ID",
+		})
+		return
+	}
+
+	stats, err := h.storage.GetHostStats(c.Request.Context(), uint(id))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, Response{
+			Success: false,
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, Response{
+		Success: true,
+		Data:    stats,
+	})
+}
+
 func (h *Handlers) SearchHosts(c *gin.Context) {
 	query := c.Query("q")
 	if query == "" {
@@ -357,160 +582,60 @@ func (h *Handlers) SearchHosts(c *gin.Context) {
 	})
 }
 
-// Port Groups
-
-func (h *Handlers) GetPortGroups(c *gin.Context) {
-	groups, err := h.storage.GetPortGroups(c.Request.Context())
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, Response{
-			Success: false,
-			Error:   err.Error(),
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, Response{
-		Success: true,
-		Data:    groups,
-	})
-}
-
-func (h *Handlers) CreatePortGroup(c *gin.Context) {
-	var group models.PortGroup
-	if err := c.ShouldBindJSON(&group); err != nil {
-		c.JSON(http.StatusBadRequest, Response{
-			Success: false,
-			Error:   err.Error(),
-		})
-		return
-	}
-
-	if err := h.storage.CreatePortGroup(c.Request.Context(), &group); err != nil {
-		c.JSON(http.StatusInternalServerError, Response{
-			Success: false,
-			Error:   err.Error(),
-		})
-		return
-	}
-
-	c.JSON(http.StatusCreated, Response{
-		Success: true,
-		Data:    group,
-	})
-}
-
-func (h *Handlers) GetPortGroup(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, Response{
-			Success: false,
-			Error:   "Invalid group ID",
-		})
-		return
-	}
-
-	group, err := h.storage.GetPortGroup(c.Request.Context(), uint(id))
-	if err != nil {
-		c.JSON(http.StatusNotFound, Response{
-			Success: false,
-			Error:   "Port group not found",
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, Response{
-		Success: true,
-		Data:    group,
-	})
-}
-
-func (h *Handlers) UpdatePortGroup(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, Response{
-			Success: false,
-			Error:   "Invalid group ID",
-		})
-		return
-	}
-
-	var group models.PortGroup
-	if err := c.ShouldBindJSON(&group); err != nil {
-		c.JSON(http.StatusBadRequest, Response{
-			Success: false,
-			Error:   err.Error(),
-		})
-		return
-	}
-
-	group.ID = uint(id)
-	if err := h.storage.UpdatePortGroup(c.Request.Context(), &group); err != nil {
-		c.JSON(http.StatusInternalServerError, Response{
-			Success: false,
-			Error:   err.Error(),
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, Response{
-		Success: true,
-		Data:    group,
-	})
-}
-
-func (h *Handlers) DeletePortGroup(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, Response{
-			Success: false,
-			Error:   "Invalid group ID",
-		})
-		return
-	}
-
-	if err := h.storage.DeletePortGroup(c.Request.Context(), uint(id)); err != nil {
-		c.JSON(http.StatusInternalServerError, Response{
-			Success: false,
-			Error:   err.Error(),
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, Response{
-		Success: true,
-		Message: "Port group deleted successfully",
-	})
-}
-
-func (h *Handlers) GetPortGroupStats(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, Response{
-			Success: false,
-			Error:   "Invalid group ID",
-		})
-		return
-	}
-
-	stats, err := h.storage.GetPortGroupStats(c.Request.Context(), uint(id))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, Response{
-			Success: false,
-			Error:   err.Error(),
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, Response{
-		Success: true,
-		Data:    stats,
-	})
-}
-
-// Port Forwards
+// ===== Port Forward Operations =====
 
 func (h *Handlers) GetPortForwards(c *gin.Context) {
 	portForwards, err := h.storage.GetPortForwards(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, Response{
+			Success: false,
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, Response{
+		Success: true,
+		Data:    portForwards,
+	})
+}
+
+func (h *Handlers) GetPortForwardsByGroup(c *gin.Context) {
+	groupID, err := strconv.ParseUint(c.Param("groupId"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, Response{
+			Success: false,
+			Error:   "Invalid group ID",
+		})
+		return
+	}
+
+	portForwards, err := h.storage.GetPortForwardsByGroup(c.Request.Context(), uint(groupID))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, Response{
+			Success: false,
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, Response{
+		Success: true,
+		Data:    portForwards,
+	})
+}
+
+func (h *Handlers) GetPortForwardsByHost(c *gin.Context) {
+	hostID, err := strconv.ParseUint(c.Param("hostId"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, Response{
+			Success: false,
+			Error:   "Invalid host ID",
+		})
+		return
+	}
+
+	portForwards, err := h.storage.GetPortForwardsByHost(c.Request.Context(), uint(hostID))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, Response{
 			Success: false,
@@ -632,6 +757,31 @@ func (h *Handlers) DeletePortForward(c *gin.Context) {
 	})
 }
 
+func (h *Handlers) GetPortForwardStats(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, Response{
+			Success: false,
+			Error:   "Invalid port forward ID",
+		})
+		return
+	}
+
+	stats, err := h.storage.GetPortForwardStats(c.Request.Context(), uint(id))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, Response{
+			Success: false,
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, Response{
+		Success: true,
+		Data:    stats,
+	})
+}
+
 func (h *Handlers) SearchPortForwards(c *gin.Context) {
 	query := c.Query("q")
 	if query == "" {
@@ -657,7 +807,7 @@ func (h *Handlers) SearchPortForwards(c *gin.Context) {
 	})
 }
 
-// Tunnel Sessions
+// ===== Tunnel Session Operations =====
 
 func (h *Handlers) GetTunnelSessions(c *gin.Context) {
 	sessions, err := h.storage.GetTunnelSessions(c.Request.Context())
@@ -700,9 +850,16 @@ func (h *Handlers) CreateTunnelSession(c *gin.Context) {
 }
 
 func (h *Handlers) GetTunnelSession(c *gin.Context) {
-	id := c.Param("id")
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, Response{
+			Success: false,
+			Error:   "Invalid session ID",
+		})
+		return
+	}
 
-	session, err := h.storage.GetTunnelSession(c.Request.Context(), id)
+	session, err := h.storage.GetTunnelSession(c.Request.Context(), uint(id))
 	if err != nil {
 		c.JSON(http.StatusNotFound, Response{
 			Success: false,
@@ -718,7 +875,14 @@ func (h *Handlers) GetTunnelSession(c *gin.Context) {
 }
 
 func (h *Handlers) UpdateTunnelSession(c *gin.Context) {
-	id := c.Param("id")
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, Response{
+			Success: false,
+			Error:   "Invalid session ID",
+		})
+		return
+	}
 
 	var session models.TunnelSession
 	if err := c.ShouldBindJSON(&session); err != nil {
@@ -729,7 +893,7 @@ func (h *Handlers) UpdateTunnelSession(c *gin.Context) {
 		return
 	}
 
-	session.ID = id
+	session.ID = uint(id)
 	if err := h.storage.UpdateTunnelSession(c.Request.Context(), &session); err != nil {
 		c.JSON(http.StatusInternalServerError, Response{
 			Success: false,
@@ -745,9 +909,16 @@ func (h *Handlers) UpdateTunnelSession(c *gin.Context) {
 }
 
 func (h *Handlers) DeleteTunnelSession(c *gin.Context) {
-	id := c.Param("id")
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, Response{
+			Success: false,
+			Error:   "Invalid session ID",
+		})
+		return
+	}
 
-	if err := h.storage.DeleteTunnelSession(c.Request.Context(), id); err != nil {
+	if err := h.storage.DeleteTunnelSession(c.Request.Context(), uint(id)); err != nil {
 		c.JSON(http.StatusInternalServerError, Response{
 			Success: false,
 			Error:   err.Error(),
@@ -777,10 +948,10 @@ func (h *Handlers) GetActiveTunnelSessions(c *gin.Context) {
 	})
 }
 
-// Tunnel Control (simplified for now)
+// ===== Tunnel Control =====
 
 func (h *Handlers) StartTunnel(c *gin.Context) {
-	// TODO: Implement tunnel start logic
+	// TODO: Implement tunnel start logic using sessionManager
 	c.JSON(http.StatusNotImplemented, Response{
 		Success: false,
 		Error:   "Tunnel start not implemented yet",
@@ -788,14 +959,14 @@ func (h *Handlers) StartTunnel(c *gin.Context) {
 }
 
 func (h *Handlers) StopTunnel(c *gin.Context) {
-	// TODO: Implement tunnel stop logic
+	// TODO: Implement tunnel stop logic using sessionManager
 	c.JSON(http.StatusNotImplemented, Response{
 		Success: false,
 		Error:   "Tunnel stop not implemented yet",
 	})
 }
 
-// WebSocket Handler (simplified for now)
+// ===== WebSocket Handler =====
 
 func (h *Handlers) WebSocketHandler(upgrader websocket.Upgrader) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -807,13 +978,19 @@ func (h *Handlers) WebSocketHandler(upgrader websocket.Upgrader) gin.HandlerFunc
 		defer conn.Close()
 
 		// TODO: Implement WebSocket logic for real-time updates
+		// This should include:
+		// - Session status updates
+		// - Host connection status
+		// - Port forward status
+		// - Real-time logs
+
 		for {
 			messageType, p, err := conn.ReadMessage()
 			if err != nil {
 				h.logger.Error("WebSocket read error: %v", err)
 				break
 			}
-			
+
 			// Echo the message back for now
 			if err := conn.WriteMessage(messageType, p); err != nil {
 				h.logger.Error("WebSocket write error: %v", err)

@@ -127,15 +127,26 @@ func (s *Server) setupRoutes() {
 	// API routes
 	api := router.Group("/api/v1")
 	{
-		// Host Groups
-		hostGroups := api.Group("/host-groups")
+		// Projects
+		projects := api.Group("/projects")
 		{
-			hostGroups.GET("", h.GetHostGroups)
-			hostGroups.POST("", h.CreateHostGroup)
-			hostGroups.GET("/:id", h.GetHostGroup)
-			hostGroups.PUT("/:id", h.UpdateHostGroup)
-			hostGroups.DELETE("/:id", h.DeleteHostGroup)
-			hostGroups.GET("/:id/stats", h.GetHostGroupStats)
+			projects.GET("", h.GetProjects)
+			projects.POST("", h.CreateProject)
+			projects.GET("/:id", h.GetProject)
+			projects.PUT("/:id", h.UpdateProject)
+			projects.DELETE("/:id", h.DeleteProject)
+			projects.GET("/:id/stats", h.GetProjectStats)
+		}
+		
+		// Groups
+		groups := api.Group("/groups")
+		{
+			groups.GET("", h.GetGroups)
+			groups.POST("", h.CreateGroup)
+			groups.GET("/:id", h.GetGroup)
+			groups.PUT("/:id", h.UpdateGroup)
+			groups.DELETE("/:id", h.DeleteGroup)
+			groups.GET("/:id/stats", h.GetGroupStats)
 		}
 		
 		// Hosts
@@ -146,18 +157,8 @@ func (s *Server) setupRoutes() {
 			hosts.GET("/:id", h.GetHost)
 			hosts.PUT("/:id", h.UpdateHost)
 			hosts.DELETE("/:id", h.DeleteHost)
+			hosts.GET("/:id/stats", h.GetHostStats)
 			hosts.GET("/search", h.SearchHosts)
-		}
-		
-		// Port Groups
-		portGroups := api.Group("/port-groups")
-		{
-			portGroups.GET("", h.GetPortGroups)
-			portGroups.POST("", h.CreatePortGroup)
-			portGroups.GET("/:id", h.GetPortGroup)
-			portGroups.PUT("/:id", h.UpdatePortGroup)
-			portGroups.DELETE("/:id", h.DeletePortGroup)
-			portGroups.GET("/:id/stats", h.GetPortGroupStats)
 		}
 		
 		// Port Forwards
@@ -168,6 +169,7 @@ func (s *Server) setupRoutes() {
 			portForwards.GET("/:id", h.GetPortForward)
 			portForwards.PUT("/:id", h.UpdatePortForward)
 			portForwards.DELETE("/:id", h.DeletePortForward)
+			portForwards.GET("/:id/stats", h.GetPortForwardStats)
 			portForwards.GET("/search", h.SearchPortForwards)
 		}
 		
@@ -254,7 +256,11 @@ func DefaultConfig() *Config {
 		Port:            8080,
 		Mode:            "release",
 		EnableCORS:      true,
-		CORSOrigins:     []string{"http://localhost:3000"}, // For Remix frontend
+		CORSOrigins:     []string{
+			"http://localhost:3000", // For Remix frontend
+			"http://localhost:5173", // For Vite dev server
+			"http://localhost:4173", // For Vite preview
+		},
 		EnableWebSocket: true,
 		JWTSecret:       "your-secret-key-change-in-production",
 		StorageConfig:   storage.DefaultSQLiteConfig(),
