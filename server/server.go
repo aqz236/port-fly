@@ -32,13 +32,13 @@ type Server struct {
 
 // Config holds server configuration
 type Config struct {
-	Host            string `json:"host"`
-	Port            int    `json:"port"`
-	Mode            string `json:"mode"` // debug, release, test
-	EnableCORS      bool   `json:"enable_cors"`
-	CORSOrigins     []string `json:"cors_origins"`
-	EnableWebSocket bool   `json:"enable_websocket"`
-	JWTSecret       string `json:"jwt_secret"`
+	Host            string                `json:"host"`
+	Port            int                   `json:"port"`
+	Mode            string                `json:"mode"` // debug, release, test
+	EnableCORS      bool                  `json:"enable_cors"`
+	CORSOrigins     []string              `json:"cors_origins"`
+	EnableWebSocket bool                  `json:"enable_websocket"`
+	JWTSecret       string                `json:"jwt_secret"`
 	StorageConfig   storage.StorageConfig `json:"storage"`
 }
 
@@ -54,26 +54,26 @@ func NewServer(config *Config) (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize logger: %w", err)
 	}
-	
+
 	// Initialize storage
 	store, err := storage.NewStorage(config.StorageConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize storage: %w", err)
 	}
-	
+
 	// Run migrations
 	if err := store.Migrate(); err != nil {
 		return nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
-	
+
 	// Initialize session manager - we'll create a simple version for now
 	sessionManager := &manager.SessionManager{}
-	
+
 	// Configure Gin mode
 	if config.Mode != "" {
 		gin.SetMode(config.Mode)
 	}
-	
+
 	// Create server
 	server := &Server{
 		config:         config,
@@ -88,23 +88,23 @@ func NewServer(config *Config) (*Server, error) {
 			},
 		},
 	}
-	
+
 	// Setup routes
 	server.setupRoutes()
-	
+
 	return server, nil
 }
 
 // setupRoutes configures the HTTP routes
 func (s *Server) setupRoutes() {
 	router := gin.New()
-	
+
 	// Middleware
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
 	router.Use(middleware.RequestID())
 	router.Use(middleware.Logger(s.logger))
-	
+
 	// CORS middleware
 	if s.config.EnableCORS {
 		corsConfig := cors.DefaultConfig()
@@ -117,13 +117,13 @@ func (s *Server) setupRoutes() {
 		corsConfig.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
 		router.Use(cors.New(corsConfig))
 	}
-	
+
 	// Initialize handlers
 	h := handlers.NewHandlers(s.storage, s.sessionManager, s.logger)
-	
+
 	// Health check
 	router.GET("/health", h.Health)
-	
+
 	// API routes
 	api := router.Group("/api/v1")
 	{
@@ -136,8 +136,10 @@ func (s *Server) setupRoutes() {
 			projects.PUT("/:id", h.UpdateProject)
 			projects.DELETE("/:id", h.DeleteProject)
 			projects.GET("/:id/stats", h.GetProjectStats)
+			projects.GET("/:id/children", h.GetProjectChildren)
+			projects.POST("/move", h.MoveProject)
 		}
-		
+
 		// Groups
 		groups := api.Group("/groups")
 		{
@@ -148,7 +150,7 @@ func (s *Server) setupRoutes() {
 			groups.DELETE("/:id", h.DeleteGroup)
 			groups.GET("/:id/stats", h.GetGroupStats)
 		}
-		
+
 		// Hosts
 		hosts := api.Group("/hosts")
 		{
@@ -160,7 +162,7 @@ func (s *Server) setupRoutes() {
 			hosts.GET("/:id/stats", h.GetHostStats)
 			hosts.GET("/search", h.SearchHosts)
 		}
-		
+
 		// Port Forwards
 		portForwards := api.Group("/port-forwards")
 		{
@@ -172,7 +174,7 @@ func (s *Server) setupRoutes() {
 			portForwards.GET("/:id/stats", h.GetPortForwardStats)
 			portForwards.GET("/search", h.SearchPortForwards)
 		}
-		
+
 		// Tunnel Sessions
 		sessions := api.Group("/sessions")
 		{
@@ -186,12 +188,12 @@ func (s *Server) setupRoutes() {
 			sessions.POST("/:id/stop", h.StopTunnel)
 		}
 	}
-	
+
 	// WebSocket endpoint
 	if s.config.EnableWebSocket {
 		router.GET("/ws", h.WebSocketHandler(s.upgrader))
 	}
-	
+
 	s.router = router
 }
 
@@ -199,7 +201,7 @@ func (s *Server) setupRoutes() {
 func (s *Server) Start() error {
 	addr := fmt.Sprintf("%s:%d", s.config.Host, s.config.Port)
 	s.logger.Info("Starting server on %s", addr)
-	
+
 	server := &http.Server{
 		Addr:         addr,
 		Handler:      s.router,
@@ -207,32 +209,32 @@ func (s *Server) Start() error {
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
-	
+
 	// Start server in a goroutine
 	go func() {
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			s.logger.Error("Failed to start server: %v", err)
 		}
 	}()
-	
+
 	s.logger.Info("Server started successfully on %s", addr)
-	
+
 	// Wait for interrupt signal to gracefully shutdown the server
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	
+
 	s.logger.Info("Shutting down server...")
-	
+
 	// Give outstanding requests 30 seconds to complete
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	
+
 	if err := server.Shutdown(ctx); err != nil {
 		s.logger.Error("Server forced to shutdown: %v", err)
 		return err
 	}
-	
+
 	s.logger.Info("Server exited")
 	return nil
 }
@@ -240,23 +242,23 @@ func (s *Server) Start() error {
 // Stop stops the server and cleans up resources
 func (s *Server) Stop() error {
 	// TODO: Stop all active sessions when SessionManager is properly implemented
-	
+
 	// Close storage connection
 	if s.storage != nil {
 		return s.storage.Close()
 	}
-	
+
 	return nil
 }
 
 // DefaultConfig returns a default server configuration
 func DefaultConfig() *Config {
 	return &Config{
-		Host:            "localhost",
-		Port:            8080,
-		Mode:            "release",
-		EnableCORS:      true,
-		CORSOrigins:     []string{
+		Host:       "localhost",
+		Port:       8080,
+		Mode:       "release",
+		EnableCORS: true,
+		CORSOrigins: []string{
 			"http://localhost:3000", // For Remix frontend
 			"http://localhost:5173", // For Vite dev server
 			"http://localhost:4173", // For Vite preview

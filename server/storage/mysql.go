@@ -179,6 +179,65 @@ func (s *MySQLStorage) DeleteProject(ctx context.Context, id uint) error {
 	return s.db.WithContext(ctx).Delete(&models.Project{}, id).Error
 }
 
+// 添加新的项目树状方法（基本实现）
+func (s *MySQLStorage) GetProjectsByParent(ctx context.Context, parentID *uint, includeChildren bool) ([]models.Project, error) {
+	var projects []models.Project
+	query := s.db.WithContext(ctx).Preload("Groups").Preload("Parent")
+	
+	if includeChildren {
+		query = query.Preload("Children")
+	}
+	
+	if parentID == nil {
+		query = query.Where("parent_id IS NULL")
+	} else {
+		query = query.Where("parent_id = ?", *parentID)
+	}
+	
+	err := query.Order("sort ASC, name ASC").Find(&projects).Error
+	return projects, err
+}
+
+func (s *MySQLStorage) GetProjectTree(ctx context.Context, rootID *uint) ([]*models.ProjectTreeNode, error) {
+	// 简化实现：直接返回所有项目的平铺列表
+	projects, err := s.GetProjects(ctx)
+	if err != nil {
+		return nil, err
+	}
+	
+	var nodes []*models.ProjectTreeNode
+	for i := range projects {
+		nodes = append(nodes, &models.ProjectTreeNode{
+			Project:     &projects[i],
+			Children:    []*models.ProjectTreeNode{},
+			HasChildren: len(projects[i].Children) > 0,
+		})
+	}
+	return nodes, nil
+}
+
+func (s *MySQLStorage) MoveProject(ctx context.Context, params *models.MoveProjectParams) error {
+	var project models.Project
+	if err := s.db.WithContext(ctx).First(&project, params.ProjectID).Error; err != nil {
+		return err
+	}
+	
+	project.ParentID = params.ParentID
+	project.Sort = params.Position
+	
+	return s.db.WithContext(ctx).Save(&project).Error
+}
+
+func (s *MySQLStorage) GetProjectChildren(ctx context.Context, parentID uint) ([]models.Project, error) {
+	var children []models.Project
+	err := s.db.WithContext(ctx).
+		Preload("Groups").
+		Where("parent_id = ?", parentID).
+		Order("sort ASC, name ASC").
+		Find(&children).Error
+	return children, err
+}
+
 func (s *MySQLStorage) GetProjectStats(ctx context.Context, projectID uint) (*models.ProjectStats, error) {
 	var stats models.ProjectStats
 	

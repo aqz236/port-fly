@@ -17,9 +17,13 @@ type StorageInterface interface {
 	CreateProject(ctx context.Context, project *models.Project) error
 	GetProject(ctx context.Context, id uint) (*models.Project, error)
 	GetProjects(ctx context.Context) ([]models.Project, error)
+	GetProjectsByParent(ctx context.Context, parentID *uint, includeChildren bool) ([]models.Project, error)
+	GetProjectTree(ctx context.Context, rootID *uint) ([]*models.ProjectTreeNode, error)
+	MoveProject(ctx context.Context, params *models.MoveProjectParams) error
 	UpdateProject(ctx context.Context, project *models.Project) error
 	DeleteProject(ctx context.Context, id uint) error
 	GetProjectStats(ctx context.Context, projectID uint) (*models.ProjectStats, error)
+	GetProjectChildren(ctx context.Context, parentID uint) ([]models.Project, error)
 	
 	// ===== Group Operations =====
 	CreateGroup(ctx context.Context, group *models.Group) error

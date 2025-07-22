@@ -26,7 +26,7 @@ Project (项目/工作空间)
 
 ## 📂 项目结构
 
-```
+```txt
 port-fly/
 ├── core/                    # 核心功能模块
 │   ├── models/              # 数据模型
@@ -71,6 +71,7 @@ port-fly/
 │   ├── cli/main.go          # CLI入口
 │   └── server/main.go       # 服务器入口
 └── docs/                    # 文档
+```
 
 #### 1. SSH核心引擎
 
@@ -98,7 +99,7 @@ port-fly/
 
 - ✅ **SQLite**: 默认嵌入式数据库
 - ✅ **PostgreSQL**: 生产环境数据库
-- ✅ **MySQL**: 高性能数据库支持  
+- ✅ **MySQL**: 高性能数据库支持
 - ✅ **GORM集成**: 自动迁移和ORM功能
 - ✅ **连接池**: 数据库连接池优化
 
@@ -187,7 +188,7 @@ tunnel_sessions (
 ### 1. 环境要求
 
 - Go 1.21+
-- Node.js 18+ (前端开发)
+- Bun.js (前端开发)
 - SQLite/PostgreSQL/MySQL (任选其一)
 
 ### 2. 构建项目
@@ -201,8 +202,8 @@ cd port-fly
 go mod download
 # 构建前端
 cd web-ui
-npm install
-npm run build
+bun install
+bun run build
 cd ..
 ```
 
@@ -221,22 +222,7 @@ PORTFLY_DB_TYPE=mysql ./bin/portfly-server
 
 ```bash
 # 创建项目
-./bin/portfly-cli project create --name "我的项目" --description "开发环境"
-
-# 创建组
-./bin/portfly-cli group create --project-id 1 --name "Web服务器" 
-
-# 添加主机
-./bin/portfly-cli host create --group-id 1 --name "生产服务器" \
-  --hostname "192.168.1.100" --username "admin" --auth-method "key"
-
-# 添加端口转发
-./bin/portfly-cli port create --group-id 1 --host-id 1 \
-  --name "Web服务" --type "local" --local-port 8080 \
-  --remote-host "localhost" --remote-port 80
-
-# 启动隧道
-./bin/portfly-cli tunnel start --port-forward-id 1
+./bin/portfly-cli --help
 ```
 
 ## 📚 API文档
@@ -244,6 +230,7 @@ PORTFLY_DB_TYPE=mysql ./bin/portfly-server
 ### 核心端点
 
 #### 项目管理
+
 ```http
 GET    /api/v1/projects          # 获取所有项目
 POST   /api/v1/projects          # 创建项目
@@ -254,6 +241,7 @@ GET    /api/v1/projects/:id/stats # 获取项目统计
 ```
 
 #### 组管理
+
 ```http
 GET    /api/v1/groups            # 获取所有组
 POST   /api/v1/groups            # 创建组
@@ -264,6 +252,7 @@ GET    /api/v1/groups/:id/stats  # 获取组统计
 ```
 
 #### 主机管理
+
 ```http
 GET    /api/v1/hosts             # 获取所有主机
 POST   /api/v1/hosts             # 创建主机
@@ -274,6 +263,7 @@ GET    /api/v1/hosts/search      # 搜索主机
 ```
 
 #### 端口转发管理
+
 ```http
 GET    /api/v1/port-forwards     # 获取所有端口转发
 POST   /api/v1/port-forwards     # 创建端口转发
@@ -283,6 +273,7 @@ DELETE /api/v1/port-forwards/:id # 删除端口转发
 ```
 
 #### 隧道会话
+
 ```http
 GET    /api/v1/sessions          # 获取所有会话
 POST   /api/v1/sessions          # 创建会话
@@ -375,4 +366,3 @@ go test -cover ./...
 ---
 
 **PortFly** - 让SSH隧道管理变得简单高效！ 🚀
-

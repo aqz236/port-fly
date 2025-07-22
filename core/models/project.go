@@ -1,12 +1,13 @@
 package models
 
 import (
+	"fmt"
 	"time"
 
 	"gorm.io/gorm"
 )
 
-// Project 项目/工作空间 - 顶级容器
+// Project 项目/工作空间 - 支持树状结构的容器
 type Project struct {
 	ID        uint           `gorm:"primarykey" json:"id"`
 	CreatedAt time.Time      `json:"created_at"`
@@ -20,8 +21,16 @@ type Project struct {
 	IsDefault   bool   `gorm:"default:false" json:"is_default"`
 	Metadata    string `gorm:"type:text" json:"metadata,omitempty"` // JSON string
 
+	// 树状结构支持
+	ParentID *uint `gorm:"index" json:"parent_id,omitempty"`       // 父项目ID，为空表示根项目
+	Level    int   `gorm:"default:0" json:"level"`                 // 层级深度，0为根项目
+	Path     string `gorm:"size:500" json:"path,omitempty"`        // 层级路径，如 "/1/2/3"
+	Sort     int    `gorm:"default:0" json:"sort"`                 // 同级排序
+
 	// 关联关系
-	Groups []Group `gorm:"foreignKey:ProjectID;constraint:OnDelete:CASCADE" json:"groups,omitempty"`
+	Parent   *Project  `gorm:"foreignKey:ParentID;constraint:OnDelete:CASCADE" json:"parent,omitempty"`
+	Children []Project `gorm:"foreignKey:ParentID;constraint:OnDelete:CASCADE" json:"children,omitempty"`
+	Groups   []Group   `gorm:"foreignKey:ProjectID;constraint:OnDelete:CASCADE" json:"groups,omitempty"`
 }
 
 // Group 混合资源组 - 可以包含主机和端口转发
@@ -73,4 +82,50 @@ type PortForwardStats struct {
 	ActiveSessions       int        `json:"active_sessions"`
 	TotalDataTransferred int64      `json:"total_data_transferred"`
 	LastUsed             *time.Time `json:"last_used,omitempty"`
+}
+
+// 项目树节点，用于前端展示
+type ProjectTreeNode struct {
+	*Project
+	Children []*ProjectTreeNode `json:"children,omitempty"`
+	HasChildren bool `json:"has_children"`
+	IsExpanded bool `json:"is_expanded,omitempty"`
+}
+
+// 项目移动参数
+type MoveProjectParams struct {
+	ProjectID uint  `json:"project_id"`
+	ParentID  *uint `json:"parent_id,omitempty"` // null表示移动到根级别
+	Position  int   `json:"position"`            // 在目标位置的排序
+}
+
+// 辅助方法
+
+// IsRoot 判断是否为根项目
+func (p *Project) IsRoot() bool {
+	return p.ParentID == nil
+}
+
+// HasChildren 判断是否有子项目
+func (p *Project) HasChildren() bool {
+	return len(p.Children) > 0
+}
+
+// GetFullPath 获取完整路径名称
+func (p *Project) GetFullPath() string {
+	if p.Parent == nil {
+		return p.Name
+	}
+	return p.Parent.GetFullPath() + " / " + p.Name
+}
+
+// BuildPath 构建数字路径
+func (p *Project) BuildPath() string {
+	if p.ParentID == nil {
+		return fmt.Sprintf("/%d", p.ID)
+	}
+	if p.Parent != nil {
+		return p.Parent.BuildPath() + fmt.Sprintf("/%d", p.ID)
+	}
+	return fmt.Sprintf("/%d", p.ID)
 }
