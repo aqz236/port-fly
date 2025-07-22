@@ -1,0 +1,92 @@
+# PortFly Configuration File
+# This is the default configuration for PortFly SSH tunnel manager
+
+# Server Configuration
+server:
+  host: "0.0.0.0"          # Bind address for HTTP server
+  port: 8080               # HTTP server port
+  read_timeout: "30s"      # HTTP read timeout
+  write_timeout: "30s"     # HTTP write timeout
+  idle_timeout: "120s"     # HTTP idle timeout
+  
+  # TLS Configuration
+  tls:
+    enabled: false         # Enable HTTPS
+    cert_file: ""          # Path to TLS certificate file
+    key_file: ""           # Path to TLS private key file
+  
+  # CORS Configuration
+  cors:
+    allowed_origins: ["*"]  # Allowed origins for CORS
+    allowed_methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    allowed_headers: ["*"]
+
+# SSH Configuration
+ssh:
+  # Connection settings
+  connect_timeout: "30s"    # SSH connection timeout
+  keepalive_timeout: "30s"  # SSH keepalive timeout
+  max_retries: 3            # Maximum connection retry attempts
+  retry_interval: "5s"      # Interval between retry attempts
+  
+  # Connection pool settings
+  max_connections: 10       # Maximum concurrent SSH connections
+  connection_timeout: "60s" # Connection pool timeout
+  idle_timeout: "300s"      # Connection idle timeout before cleanup
+  
+  # Security settings
+  host_key_callback: "ask"  # Host key verification policy: "strict", "accept", "ask"
+  # Optional: Specify allowed ciphers, MACs, and key exchanges
+  # ciphers: []
+  # macs: []
+  # key_exchanges: []
+
+# Logging Configuration
+logging:
+  level: "info"             # Log level: debug, info, warn, error
+  format: "json"            # Log format: json, text
+  output: "stdout"          # Log output: stdout, stderr, or file path
+  max_size: 100             # Maximum log file size in MB
+  max_backups: 3            # Maximum number of backup log files
+  max_age: 7                # Maximum age of log files in days
+  compress: true            # Compress rotated log files
+
+# Storage Configuration
+storage:
+  type: "boltdb"            # Storage backend: boltdb, memory
+  path: "./data/portfly.db" # Database file path (for boltdb)
+  options: {}               # Backend-specific options
+  
+  # Backup Configuration
+  backup:
+    enabled: true           # Enable automatic backups
+    interval: "24h"         # Backup interval
+    path: "./data/backups"  # Backup directory
+    max_files: 7            # Maximum number of backup files to keep
+
+# Default SSH Connection Settings
+# These can be overridden per session
+defaults:
+  ssh:
+    port: 22                # Default SSH port
+    auth_method: "private_key"  # Default authentication method
+    host_key_callback: "ask"    # Default host key verification
+    connect_timeout: "30s"      # Default connection timeout
+    keepalive_timeout: "30s"    # Default keepalive timeout
+    max_retries: 3              # Default retry attempts
+    retry_interval: "5s"        # Default retry interval
+
+# Tunnel Default Settings
+tunnel:
+  max_connections: 100      # Maximum connections per tunnel
+  idle_timeout: "300s"      # Connection idle timeout
+  allow_remote_connections: false  # Allow remote connections to local forwards
+  socks_version: 5          # Default SOCKS version for dynamic forwarding
+
+# Feature Flags
+features:
+  enable_web_ui: true       # Enable web UI
+  enable_api: true          # Enable REST API
+  enable_websocket: true    # Enable WebSocket for real-time updates
+  enable_metrics: true      # Enable metrics collection
+  enable_health_check: true # Enable health check endpoint
