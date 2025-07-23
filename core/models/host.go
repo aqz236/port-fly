@@ -30,8 +30,8 @@ type Host struct {
 	ConnectionCount int        `gorm:"default:0" json:"connection_count"`
 
 	// 元数据
-	Tags     string `gorm:"type:text" json:"tags,omitempty"`     // JSON array string
-	Metadata string `gorm:"type:text" json:"metadata,omitempty"` // JSON string
+	Tags     []string `gorm:"type:text;serializer:json" json:"tags,omitempty"`
+	Metadata string   `gorm:"type:text" json:"metadata,omitempty"` // JSON string
 
 	// 外键
 	GroupID uint  `gorm:"not null;index" json:"group_id"`

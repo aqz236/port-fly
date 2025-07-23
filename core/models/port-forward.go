@@ -24,9 +24,9 @@ type PortForward struct {
 	AutoStart bool   `gorm:"default:false" json:"auto_start"`
 	Status    string `gorm:"size:20;default:inactive" json:"status"` // active, inactive, error
 
-	// 元数据
-	Tags     string `gorm:"type:text" json:"tags,omitempty"`     // JSON array string
-	Metadata string `gorm:"type:text" json:"metadata,omitempty"` // JSON string
+		// 元数据
+	Tags     []string `gorm:"type:text;serializer:json" json:"tags,omitempty"`
+	Metadata string   `gorm:"type:text" json:"metadata,omitempty"` // JSON string
 
 	// 外键
 	GroupID uint  `gorm:"not null;index" json:"group_id"`

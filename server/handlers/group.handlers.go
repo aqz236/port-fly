@@ -11,6 +11,37 @@ import (
 // ===== Group Operations =====
 
 func (h *Handlers) GetGroups(c *gin.Context) {
+	// 检查是否有 project_id 查询参数
+	projectIDStr := c.Query("project_id")
+	
+	if projectIDStr != "" {
+		// 如果有 project_id 参数，按项目获取组
+		projectID, err := strconv.ParseUint(projectIDStr, 10, 32)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, Response{
+				Success: false,
+				Error:   "Invalid project ID",
+			})
+			return
+		}
+
+		groups, err := h.storage.GetGroupsByProject(c.Request.Context(), uint(projectID))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, Response{
+				Success: false,
+				Error:   err.Error(),
+			})
+			return
+		}
+
+		c.JSON(http.StatusOK, Response{
+			Success: true,
+			Data:    groups,
+		})
+		return
+	}
+
+	// 否则获取所有组
 	groups, err := h.storage.GetGroups(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, Response{

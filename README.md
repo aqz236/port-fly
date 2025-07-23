@@ -62,10 +62,6 @@ port-fly/
 │   └── server.go            # 服务器主程序
 ├── web-ui/                  # 前端界面
 │   ├── app/                 # Remix应用
-│   │   ├── components/      # React组件
-│   │   ├── routes/          # 页面路由
-│   │   ├── lib/             # 工具库
-│   │   └── types/           # TypeScript类型定义
 │   └── public/              # 静态资源
 ├── cmd/                     # 可执行程序入口
 │   ├── cli/main.go          # CLI入口
