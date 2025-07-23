@@ -22,12 +22,13 @@ import (
 
 // Server represents the HTTP API server
 type Server struct {
-	config         *Config
-	router         *gin.Engine
-	storage        storage.StorageInterface
-	sessionManager *manager.SessionManager
-	logger         utils.Logger
-	upgrader       websocket.Upgrader
+	config          *Config
+	router          *gin.Engine
+	storage         storage.StorageInterface
+	sessionManager  *manager.SessionManager
+	terminalManager *handlers.TerminalManager
+	logger          utils.Logger
+	upgrader        websocket.Upgrader
 }
 
 // Config holds server configuration
@@ -88,6 +89,12 @@ func NewServer(config *Config) (*Server, error) {
 			},
 		},
 	}
+
+	// Initialize handlers
+	h := handlers.NewHandlers(server.storage, server.sessionManager, server.logger)
+	
+	// Initialize terminal manager
+	server.terminalManager = handlers.NewTerminalManager(h)
 
 	// Setup routes
 	server.setupRoutes()
@@ -161,6 +168,11 @@ func (s *Server) setupRoutes() {
 			hosts.DELETE("/:id", h.DeleteHost)
 			hosts.GET("/:id/stats", h.GetHostStats)
 			hosts.GET("/search", h.SearchHosts)
+			// Host connection endpoints
+			hosts.POST("/:id/connect", h.ConnectHost)
+			hosts.POST("/:id/disconnect", h.DisconnectHost)
+			hosts.POST("/:id/test", h.TestHostConnection)
+			hosts.POST("/:id/execute", h.ExecuteSSHCommand)
 		}
 
 		// Port Forwards
@@ -192,6 +204,8 @@ func (s *Server) setupRoutes() {
 	// WebSocket endpoint
 	if s.config.EnableWebSocket {
 		router.GET("/ws", h.WebSocketHandler(s.upgrader))
+		// Terminal WebSocket endpoint
+		router.GET("/ws/terminal/:hostId", h.TerminalWebSocketHandler(s.terminalManager))
 	}
 
 	s.router = router
