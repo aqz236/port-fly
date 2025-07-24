@@ -553,6 +553,47 @@ func (s *SQLiteStorage) SearchPortForwards(ctx context.Context, query string) ([
 	return portForwards, err
 }
 
+// ===== Port Operations (V2) =====
+
+func (s *SQLiteStorage) CreatePort(ctx context.Context, port *models.Port) error {
+	return s.db.WithContext(ctx).Create(port).Error
+}
+
+func (s *SQLiteStorage) GetPort(ctx context.Context, id uint) (*models.Port, error) {
+	var port models.Port
+	err := s.db.WithContext(ctx).Preload("Group").Preload("Host").First(&port, id).Error
+	if err != nil {
+		return nil, err
+	}
+	return &port, nil
+}
+
+func (s *SQLiteStorage) GetPorts(ctx context.Context) ([]models.Port, error) {
+	var ports []models.Port
+	err := s.db.WithContext(ctx).Preload("Group").Preload("Host").Find(&ports).Error
+	return ports, err
+}
+
+func (s *SQLiteStorage) GetPortsByGroup(ctx context.Context, groupID uint) ([]models.Port, error) {
+	var ports []models.Port
+	err := s.db.WithContext(ctx).Preload("Host").Where("group_id = ?", groupID).Find(&ports).Error
+	return ports, err
+}
+
+func (s *SQLiteStorage) GetPortsByHost(ctx context.Context, hostID uint) ([]models.Port, error) {
+	var ports []models.Port
+	err := s.db.WithContext(ctx).Preload("Group").Where("host_id = ?", hostID).Find(&ports).Error
+	return ports, err
+}
+
+func (s *SQLiteStorage) UpdatePort(ctx context.Context, port *models.Port) error {
+	return s.db.WithContext(ctx).Save(port).Error
+}
+
+func (s *SQLiteStorage) DeletePort(ctx context.Context, id uint) error {
+	return s.db.WithContext(ctx).Delete(&models.Port{}, id).Error
+}
+
 // ===== Tunnel Session Operations =====
 
 func (s *SQLiteStorage) CreateTunnelSession(ctx context.Context, session *models.TunnelSession) error {

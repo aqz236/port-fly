@@ -55,6 +55,15 @@ type StorageInterface interface {
 	GetPortForwardStats(ctx context.Context, portForwardID uint) (*models.PortForwardStats, error)
 	SearchPortForwards(ctx context.Context, query string) ([]models.PortForward, error)
 	
+	// ===== Port Operations (V2) =====
+	CreatePort(ctx context.Context, port *models.Port) error
+	GetPort(ctx context.Context, id uint) (*models.Port, error)
+	GetPorts(ctx context.Context) ([]models.Port, error)
+	GetPortsByGroup(ctx context.Context, groupID uint) ([]models.Port, error)
+	GetPortsByHost(ctx context.Context, hostID uint) ([]models.Port, error)
+	UpdatePort(ctx context.Context, port *models.Port) error
+	DeletePort(ctx context.Context, id uint) error
+	
 	// ===== Tunnel Session Operations =====
 	CreateTunnelSession(ctx context.Context, session *models.TunnelSession) error
 	GetTunnelSession(ctx context.Context, id uint) (*models.TunnelSession, error)

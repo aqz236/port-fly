@@ -92,7 +92,7 @@ func NewServer(config *Config) (*Server, error) {
 
 	// Initialize handlers
 	h := handlers.NewHandlers(server.storage, server.sessionManager, server.logger)
-	
+
 	// Initialize terminal manager
 	server.terminalManager = handlers.NewTerminalManager(h)
 
@@ -185,6 +185,17 @@ func (s *Server) setupRoutes() {
 			portForwards.DELETE("/:id", h.DeletePortForward)
 			portForwards.GET("/:id/stats", h.GetPortForwardStats)
 			portForwards.GET("/search", h.SearchPortForwards)
+		}
+
+		// Ports (New V2 API)
+		ports := api.Group("/ports")
+		{
+			ports.GET("", h.GetPorts)
+			ports.POST("", h.CreatePort)
+			ports.GET("/:id", h.GetPort)
+			ports.PUT("/:id", h.UpdatePort)
+			ports.DELETE("/:id", h.DeletePort)
+			ports.POST("/:id/control", h.ControlPort)
 		}
 
 		// Tunnel Sessions

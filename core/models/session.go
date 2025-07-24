@@ -159,9 +159,10 @@ type TunnelSession struct {
 	UpdatedAt        time.Time      `json:"updated_at"`
 	DeletedAt        *time.Time     `json:"deleted_at,omitempty" gorm:"index"`
 	
-	// Foreign keys - will be updated when we integrate with new models
+	// Foreign keys - updated to support both PortForward and Port
 	HostID           uint           `json:"host_id" gorm:"not null;index"`
-	PortForwardID    uint           `json:"port_forward_id" gorm:"not null;index"`
+	PortForwardID    *uint          `json:"port_forward_id,omitempty" gorm:"index"` // 兼容原有的 PortForward
+	PortID           *uint          `json:"port_id,omitempty" gorm:"index"`         // 新的 Port 模型
 }
 
 // Rule represents a forwarding rule template

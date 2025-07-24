@@ -10,14 +10,17 @@ import (
 type Handlers struct {
 	storage        storage.StorageInterface
 	sessionManager *manager.SessionManager
+	portManager    *PortManager
 	logger         utils.Logger
 }
 
 // NewHandlers creates a new handlers instance
 func NewHandlers(storage storage.StorageInterface, sessionManager *manager.SessionManager, logger utils.Logger) *Handlers {
+	portManager := NewPortManager(sessionManager, logger)
 	return &Handlers{
 		storage:        storage,
 		sessionManager: sessionManager,
+		portManager:    portManager,
 		logger:         logger,
 	}
 }
