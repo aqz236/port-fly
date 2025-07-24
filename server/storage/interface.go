@@ -78,16 +78,4 @@ type StorageConfig struct {
 	Options  map[string]string `json:"options"`
 }
 
-// NewStorage creates a new storage instance based on configuration
-func NewStorage(config StorageConfig) (StorageInterface, error) {
-	switch config.Type {
-	case "sqlite", "sqlite3":
-		return NewSQLiteStorage(config)
-	case "postgres", "postgresql":
-		return NewPostgresStorage(config)
-	case "mysql":
-		return NewMySQLStorage(config)
-	default:
-		return NewSQLiteStorage(config) // Default to SQLite
-	}
-}
+

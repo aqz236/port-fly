@@ -25,45 +25,6 @@ func DefaultSQLiteConfig() StorageConfig {
 	}
 }
 
-// DefaultPostgresConfig returns a default PostgreSQL configuration
-func DefaultPostgresConfig() StorageConfig {
-	return StorageConfig{
-		Type:     string(StorageTypePostgres),
-		Host:     "localhost",
-		Port:     5432,
-		Database: "portfly",
-		Username: "postgres",
-		Password: "",
-		Options: map[string]string{
-			"sslmode":        "disable",
-			"timezone":       "UTC",
-			"log_level":      "warn",
-			"max_open_conns": "25",
-			"max_idle_conns": "10",
-		},
-	}
-}
-
-// DefaultMySQLConfig returns a default MySQL configuration
-func DefaultMySQLConfig() StorageConfig {
-	return StorageConfig{
-		Type:     string(StorageTypeMySQL),
-		Host:     "localhost",
-		Port:     3306,
-		Database: "portfly",
-		Username: "root",
-		Password: "",
-		Options: map[string]string{
-			"charset":        "utf8mb4",
-			"parseTime":      "True",
-			"loc":            "Local",
-			"log_level":      "warn",
-			"max_open_conns": "25",
-			"max_idle_conns": "10",
-		},
-	}
-}
-
 // ValidateConfig validates the storage configuration
 func ValidateConfig(config StorageConfig) error {
 	if config.Type == "" {
@@ -90,4 +51,39 @@ func ValidateConfig(config StorageConfig) error {
 	}
 
 	return nil
+}
+
+// StorageFactory is a function type for creating storage instances
+type StorageFactory func(config StorageConfig) (StorageInterface, error)
+
+// storage factories registry
+var storageFactories = make(map[string]StorageFactory)
+
+// RegisterStorageFactory registers a storage factory for a given type
+func RegisterStorageFactory(storageType string, factory StorageFactory) {
+	storageFactories[strings.ToLower(storageType)] = factory
+}
+
+// NewStorage creates a new storage instance based on configuration
+func NewStorage(config StorageConfig) (StorageInterface, error) {
+	if err := ValidateConfig(config); err != nil {
+		return nil, err
+	}
+
+	storageType := strings.ToLower(config.Type)
+
+	// Try to find registered factory
+	if factory, exists := storageFactories[storageType]; exists {
+		return factory(config)
+	}
+
+	// Handle known aliases
+	switch storageType {
+	case "sqlite3":
+		if factory, exists := storageFactories["sqlite"]; exists {
+			return factory(config)
+		}
+	}
+
+	return nil, fmt.Errorf("unsupported storage type: %s", config.Type)
 }
