@@ -187,17 +187,6 @@ func (s *Server) setupRoutes() {
 			portForwards.GET("/search", h.SearchPortForwards)
 		}
 
-		// Ports (New V2 API)
-		ports := api.Group("/ports")
-		{
-			ports.GET("", h.GetPorts)
-			ports.POST("", h.CreatePort)
-			ports.GET("/:id", h.GetPort)
-			ports.PUT("/:id", h.UpdatePort)
-			ports.DELETE("/:id", h.DeletePort)
-			ports.POST("/:id/control", h.ControlPort)
-		}
-
 		// Tunnel Sessions
 		sessions := api.Group("/sessions")
 		{

@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+
 	"github.com/aqz236/port-fly/core/models"
 )
 
@@ -12,7 +13,7 @@ type StorageInterface interface {
 	Close() error
 	Health() error
 	Migrate() error
-	
+
 	// ===== Project Operations =====
 	CreateProject(ctx context.Context, project *models.Project) error
 	GetProject(ctx context.Context, id uint) (*models.Project, error)
@@ -24,7 +25,7 @@ type StorageInterface interface {
 	DeleteProject(ctx context.Context, id uint) error
 	GetProjectStats(ctx context.Context, projectID uint) (*models.ProjectStats, error)
 	GetProjectChildren(ctx context.Context, parentID uint) ([]models.Project, error)
-	
+
 	// ===== Group Operations =====
 	CreateGroup(ctx context.Context, group *models.Group) error
 	GetGroup(ctx context.Context, id uint) (*models.Group, error)
@@ -33,7 +34,7 @@ type StorageInterface interface {
 	UpdateGroup(ctx context.Context, group *models.Group) error
 	DeleteGroup(ctx context.Context, id uint) error
 	GetGroupStats(ctx context.Context, groupID uint) (*models.GroupStats, error)
-	
+
 	// ===== Host Operations =====
 	CreateHost(ctx context.Context, host *models.Host) error
 	GetHost(ctx context.Context, id uint) (*models.Host, error)
@@ -43,7 +44,7 @@ type StorageInterface interface {
 	DeleteHost(ctx context.Context, id uint) error
 	GetHostStats(ctx context.Context, hostID uint) (*models.HostStats, error)
 	SearchHosts(ctx context.Context, query string) ([]models.Host, error)
-	
+
 	// ===== Port Forward Operations =====
 	CreatePortForward(ctx context.Context, portForward *models.PortForward) error
 	GetPortForward(ctx context.Context, id uint) (*models.PortForward, error)
@@ -54,16 +55,7 @@ type StorageInterface interface {
 	DeletePortForward(ctx context.Context, id uint) error
 	GetPortForwardStats(ctx context.Context, portForwardID uint) (*models.PortForwardStats, error)
 	SearchPortForwards(ctx context.Context, query string) ([]models.PortForward, error)
-	
-	// ===== Port Operations (V2) =====
-	CreatePort(ctx context.Context, port *models.Port) error
-	GetPort(ctx context.Context, id uint) (*models.Port, error)
-	GetPorts(ctx context.Context) ([]models.Port, error)
-	GetPortsByGroup(ctx context.Context, groupID uint) ([]models.Port, error)
-	GetPortsByHost(ctx context.Context, hostID uint) ([]models.Port, error)
-	UpdatePort(ctx context.Context, port *models.Port) error
-	DeletePort(ctx context.Context, id uint) error
-	
+
 	// ===== Tunnel Session Operations =====
 	CreateTunnelSession(ctx context.Context, session *models.TunnelSession) error
 	GetTunnelSession(ctx context.Context, id uint) (*models.TunnelSession, error)
