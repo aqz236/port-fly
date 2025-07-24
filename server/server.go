@@ -147,7 +147,7 @@ func (s *Server) setupRoutes() {
 			projects.POST("/move", h.MoveProject)
 		}
 
-		// Groups
+		// Groups(Reactflow 画布)
 		groups := api.Group("/groups")
 		{
 			groups.GET("", h.GetGroups)
@@ -168,23 +168,12 @@ func (s *Server) setupRoutes() {
 			hosts.DELETE("/:id", h.DeleteHost)
 			hosts.GET("/:id/stats", h.GetHostStats)
 			hosts.GET("/search", h.SearchHosts)
+
 			// Host connection endpoints
 			hosts.POST("/:id/connect", h.ConnectHost)
 			hosts.POST("/:id/disconnect", h.DisconnectHost)
 			hosts.POST("/:id/test", h.TestHostConnection)
 			hosts.POST("/:id/execute", h.ExecuteSSHCommand)
-		}
-
-		// Port Forwards
-		portForwards := api.Group("/port-forwards")
-		{
-			portForwards.GET("", h.GetPortForwards)
-			portForwards.POST("", h.CreatePortForward)
-			portForwards.GET("/:id", h.GetPortForward)
-			portForwards.PUT("/:id", h.UpdatePortForward)
-			portForwards.DELETE("/:id", h.DeletePortForward)
-			portForwards.GET("/:id/stats", h.GetPortForwardStats)
-			portForwards.GET("/search", h.SearchPortForwards)
 		}
 
 		// Tunnel Sessions

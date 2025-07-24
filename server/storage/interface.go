@@ -45,17 +45,6 @@ type StorageInterface interface {
 	GetHostStats(ctx context.Context, hostID uint) (*models.HostStats, error)
 	SearchHosts(ctx context.Context, query string) ([]models.Host, error)
 
-	// ===== Port Forward Operations =====
-	CreatePortForward(ctx context.Context, portForward *models.PortForward) error
-	GetPortForward(ctx context.Context, id uint) (*models.PortForward, error)
-	GetPortForwards(ctx context.Context) ([]models.PortForward, error)
-	GetPortForwardsByHost(ctx context.Context, hostID uint) ([]models.PortForward, error)
-	GetPortForwardsByGroup(ctx context.Context, groupID uint) ([]models.PortForward, error)
-	UpdatePortForward(ctx context.Context, portForward *models.PortForward) error
-	DeletePortForward(ctx context.Context, id uint) error
-	GetPortForwardStats(ctx context.Context, portForwardID uint) (*models.PortForwardStats, error)
-	SearchPortForwards(ctx context.Context, query string) ([]models.PortForward, error)
-
 	// ===== Tunnel Session Operations =====
 	CreateTunnelSession(ctx context.Context, session *models.TunnelSession) error
 	GetTunnelSession(ctx context.Context, id uint) (*models.TunnelSession, error)
@@ -77,5 +66,3 @@ type StorageConfig struct {
 	SSLMode  string            `json:"ssl_mode"`
 	Options  map[string]string `json:"options"`
 }
-
-
