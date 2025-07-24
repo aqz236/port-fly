@@ -6,7 +6,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// Group 混合资源组 - 可以包含主机和端口转发
+// Group Reactflow画布 - 可以包含主机和端口 node
 type Group struct {
 	ID        uint           `gorm:"primarykey" json:"id"`
 	CreatedAt time.Time      `json:"created_at"`
@@ -23,7 +23,7 @@ type Group struct {
 	// 外键
 	ProjectID uint    `gorm:"not null;index" json:"project_id"`
 	Project   Project `gorm:"constraint:OnDelete:CASCADE" json:"project,omitempty"`
-	
+
 	// 关联关系
 	Hosts        []Host        `gorm:"foreignKey:GroupID;constraint:OnDelete:CASCADE" json:"hosts,omitempty"`
 	PortForwards []PortForward `gorm:"foreignKey:GroupID;constraint:OnDelete:CASCADE" json:"port_forwards,omitempty"`

@@ -103,6 +103,8 @@ func (s *SQLiteStorage) Migrate() error {
 		&models.Project{},
 		&models.Group{},
 		&models.Host{},
+		&models.Port{},
+		&models.PortConnection{},
 		&models.PortForward{},
 		&models.TunnelSession{},
 	)

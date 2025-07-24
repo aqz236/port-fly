@@ -18,16 +18,16 @@ type TunnelManager struct {
 	sshClient *SSHClient
 	config    models.TunnelConfig
 	logger    utils.Logger
-	
+
 	// State management
-	running    int32
-	listeners  []net.Listener
+	running     int32
+	listeners   []net.Listener
 	connections sync.Map // map[net.Conn]bool
-	stopChan   chan struct{}
-	wg         sync.WaitGroup
-	
+	stopChan    chan struct{}
+	wg          sync.WaitGroup
+
 	// Statistics
-	stats models.SessionStats
+	stats   models.SessionStats
 	statsMu sync.RWMutex
 }
 
@@ -46,13 +46,13 @@ func (tm *TunnelManager) Start(ctx context.Context) error {
 	if !atomic.CompareAndSwapInt32(&tm.running, 0, 1) {
 		return fmt.Errorf("tunnel is already running")
 	}
-	
+
 	// Validate tunnel configuration
 	if err := tm.config.Validate(); err != nil {
 		atomic.StoreInt32(&tm.running, 0)
 		return fmt.Errorf("invalid tunnel configuration: %w", err)
 	}
-	
+
 	// Ensure SSH connection is established
 	if !tm.sshClient.IsConnected() {
 		if err := tm.sshClient.Connect(ctx); err != nil {
@@ -60,7 +60,7 @@ func (tm *TunnelManager) Start(ctx context.Context) error {
 			return fmt.Errorf("failed to establish SSH connection: %w", err)
 		}
 	}
-	
+
 	var err error
 	switch tm.config.Type {
 	case models.TunnelTypeLocal:
@@ -72,16 +72,16 @@ func (tm *TunnelManager) Start(ctx context.Context) error {
 	default:
 		err = fmt.Errorf("unsupported tunnel type: %s", tm.config.Type)
 	}
-	
+
 	if err != nil {
 		atomic.StoreInt32(&tm.running, 0)
 		return err
 	}
-	
-	tm.logger.Info("tunnel started successfully", 
+
+	tm.logger.Info("tunnel started successfully",
 		"type", tm.config.Type,
 		"description", tm.config.GetTunnelDescription())
-	
+
 	return nil
 }
 
@@ -90,19 +90,19 @@ func (tm *TunnelManager) Stop() error {
 	if !atomic.CompareAndSwapInt32(&tm.running, 1, 0) {
 		return fmt.Errorf("tunnel is not running")
 	}
-	
+
 	tm.logger.Info("stopping tunnel")
-	
+
 	// Signal stop
 	close(tm.stopChan)
-	
+
 	// Close all listeners
 	for _, listener := range tm.listeners {
 		if err := listener.Close(); err != nil {
 			tm.logger.Warn("error closing listener", "error", err)
 		}
 	}
-	
+
 	// Close all active connections
 	tm.connections.Range(func(key, value interface{}) bool {
 		if conn, ok := key.(net.Conn); ok {
@@ -110,10 +110,10 @@ func (tm *TunnelManager) Stop() error {
 		}
 		return true
 	})
-	
+
 	// Wait for all goroutines to finish
 	tm.wg.Wait()
-	
+
 	tm.logger.Info("tunnel stopped")
 	return nil
 }
@@ -136,41 +136,41 @@ func (tm *TunnelManager) startLocalForwarding(ctx context.Context) error {
 	if bindAddr == "" {
 		bindAddr = "127.0.0.1"
 	}
-	
+
 	localAddr := fmt.Sprintf("%s:%d", bindAddr, tm.config.LocalPort)
 	listener, err := net.Listen("tcp", localAddr)
 	if err != nil {
 		return fmt.Errorf("failed to listen on %s: %w", localAddr, err)
 	}
-	
+
 	tm.listeners = append(tm.listeners, listener)
-	
+
 	tm.wg.Add(1)
 	go tm.handleLocalConnections(ctx, listener)
-	
-	tm.logger.Info("local forwarding started", 
+
+	tm.logger.Info("local forwarding started",
 		"local_addr", localAddr,
 		"remote_addr", fmt.Sprintf("%s:%d", tm.config.RemoteHost, tm.config.RemotePort))
-	
+
 	return nil
 }
 
 // handleLocalConnections handles incoming connections for local forwarding
 func (tm *TunnelManager) handleLocalConnections(ctx context.Context, listener net.Listener) {
 	defer tm.wg.Done()
-	
+
 	for {
 		select {
 		case <-tm.stopChan:
 			return
 		default:
 		}
-		
+
 		// Set accept timeout to allow checking stop signal
 		if tcpListener, ok := listener.(*net.TCPListener); ok {
 			tcpListener.SetDeadline(time.Now().Add(1 * time.Second))
 		}
-		
+
 		conn, err := listener.Accept()
 		if err != nil {
 			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
@@ -182,7 +182,7 @@ func (tm *TunnelManager) handleLocalConnections(ctx context.Context, listener ne
 			tm.logger.Error("failed to accept connection", "error", err)
 			continue
 		}
-		
+
 		tm.wg.Add(1)
 		go tm.handleLocalConnection(ctx, conn)
 	}
@@ -192,11 +192,11 @@ func (tm *TunnelManager) handleLocalConnections(ctx context.Context, listener ne
 func (tm *TunnelManager) handleLocalConnection(ctx context.Context, localConn net.Conn) {
 	defer tm.wg.Done()
 	defer localConn.Close()
-	
+
 	// Track connection
 	tm.connections.Store(localConn, true)
 	defer tm.connections.Delete(localConn)
-	
+
 	// Update statistics
 	tm.updateStats(func(stats *models.SessionStats) {
 		stats.TotalConnections++
@@ -205,7 +205,7 @@ func (tm *TunnelManager) handleLocalConnection(ctx context.Context, localConn ne
 	defer tm.updateStats(func(stats *models.SessionStats) {
 		stats.ActiveConnections--
 	})
-	
+
 	// Establish SSH connection to remote host
 	remoteAddr := fmt.Sprintf("%s:%d", tm.config.RemoteHost, tm.config.RemotePort)
 	sshClient := tm.sshClient.GetClient()
@@ -216,11 +216,11 @@ func (tm *TunnelManager) handleLocalConnection(ctx context.Context, localConn ne
 		})
 		return
 	}
-	
+
 	remoteConn, err := sshClient.Dial("tcp", remoteAddr)
 	if err != nil {
-		tm.logger.Error("failed to connect to remote host", 
-			"remote_addr", remoteAddr, 
+		tm.logger.Error("failed to connect to remote host",
+			"remote_addr", remoteAddr,
 			"error", err)
 		tm.updateStats(func(stats *models.SessionStats) {
 			stats.FailedConnections++
@@ -228,11 +228,11 @@ func (tm *TunnelManager) handleLocalConnection(ctx context.Context, localConn ne
 		return
 	}
 	defer remoteConn.Close()
-	
-	tm.logger.Debug("established connection", 
+
+	tm.logger.Debug("established connection",
 		"local_addr", localConn.RemoteAddr(),
 		"remote_addr", remoteAddr)
-	
+
 	// Start bidirectional data transfer
 	tm.transfer(localConn, remoteConn)
 }
@@ -243,41 +243,41 @@ func (tm *TunnelManager) startRemoteForwarding(ctx context.Context) error {
 	if bindAddr == "" {
 		bindAddr = "127.0.0.1"
 	}
-	
+
 	remoteAddr := fmt.Sprintf("%s:%d", bindAddr, tm.config.LocalPort)
 	sshClient := tm.sshClient.GetClient()
 	if sshClient == nil {
 		return fmt.Errorf("SSH client not available")
 	}
-	
+
 	listener, err := sshClient.Listen("tcp", remoteAddr)
 	if err != nil {
 		return fmt.Errorf("failed to listen on remote %s: %w", remoteAddr, err)
 	}
-	
+
 	tm.listeners = append(tm.listeners, listener)
-	
+
 	tm.wg.Add(1)
 	go tm.handleRemoteConnections(ctx, listener)
-	
-	tm.logger.Info("remote forwarding started", 
+
+	tm.logger.Info("remote forwarding started",
 		"remote_addr", remoteAddr,
 		"local_addr", fmt.Sprintf("%s:%d", tm.config.RemoteHost, tm.config.RemotePort))
-	
+
 	return nil
 }
 
 // handleRemoteConnections handles incoming connections for remote forwarding
 func (tm *TunnelManager) handleRemoteConnections(ctx context.Context, listener net.Listener) {
 	defer tm.wg.Done()
-	
+
 	for {
 		select {
 		case <-tm.stopChan:
 			return
 		default:
 		}
-		
+
 		conn, err := listener.Accept()
 		if err != nil {
 			if atomic.LoadInt32(&tm.running) == 0 {
@@ -286,7 +286,7 @@ func (tm *TunnelManager) handleRemoteConnections(ctx context.Context, listener n
 			tm.logger.Error("failed to accept remote connection", "error", err)
 			continue
 		}
-		
+
 		tm.wg.Add(1)
 		go tm.handleRemoteConnection(ctx, conn)
 	}
@@ -296,11 +296,11 @@ func (tm *TunnelManager) handleRemoteConnections(ctx context.Context, listener n
 func (tm *TunnelManager) handleRemoteConnection(ctx context.Context, remoteConn net.Conn) {
 	defer tm.wg.Done()
 	defer remoteConn.Close()
-	
+
 	// Track connection
 	tm.connections.Store(remoteConn, true)
 	defer tm.connections.Delete(remoteConn)
-	
+
 	// Update statistics
 	tm.updateStats(func(stats *models.SessionStats) {
 		stats.TotalConnections++
@@ -309,13 +309,13 @@ func (tm *TunnelManager) handleRemoteConnection(ctx context.Context, remoteConn 
 	defer tm.updateStats(func(stats *models.SessionStats) {
 		stats.ActiveConnections--
 	})
-	
+
 	// Connect to local target
 	localAddr := net.JoinHostPort(tm.config.RemoteHost, fmt.Sprintf("%d", tm.config.RemotePort))
 	localConn, err := net.Dial("tcp", localAddr)
 	if err != nil {
-		tm.logger.Error("failed to connect to local target", 
-			"local_addr", localAddr, 
+		tm.logger.Error("failed to connect to local target",
+			"local_addr", localAddr,
 			"error", err)
 		tm.updateStats(func(stats *models.SessionStats) {
 			stats.FailedConnections++
@@ -323,11 +323,11 @@ func (tm *TunnelManager) handleRemoteConnection(ctx context.Context, remoteConn 
 		return
 	}
 	defer localConn.Close()
-	
-	tm.logger.Debug("established remote connection", 
+
+	tm.logger.Debug("established remote connection",
 		"remote_addr", remoteConn.RemoteAddr(),
 		"local_addr", localAddr)
-	
+
 	// Start bidirectional data transfer
 	tm.transfer(remoteConn, localConn)
 }
@@ -338,41 +338,41 @@ func (tm *TunnelManager) startDynamicForwarding(ctx context.Context) error {
 	if bindAddr == "" {
 		bindAddr = "127.0.0.1"
 	}
-	
+
 	localAddr := fmt.Sprintf("%s:%d", bindAddr, tm.config.SOCKSPort)
 	listener, err := net.Listen("tcp", localAddr)
 	if err != nil {
 		return fmt.Errorf("failed to listen on %s: %w", localAddr, err)
 	}
-	
+
 	tm.listeners = append(tm.listeners, listener)
-	
+
 	tm.wg.Add(1)
 	go tm.handleSOCKSConnections(ctx, listener)
-	
-	tm.logger.Info("SOCKS proxy started", 
+
+	tm.logger.Info("SOCKS proxy started",
 		"bind_addr", localAddr,
 		"version", tm.config.SOCKSVersion)
-	
+
 	return nil
 }
 
 // handleSOCKSConnections handles incoming SOCKS connections
 func (tm *TunnelManager) handleSOCKSConnections(ctx context.Context, listener net.Listener) {
 	defer tm.wg.Done()
-	
+
 	for {
 		select {
 		case <-tm.stopChan:
 			return
 		default:
 		}
-		
+
 		// Set accept timeout to allow checking stop signal
 		if tcpListener, ok := listener.(*net.TCPListener); ok {
 			tcpListener.SetDeadline(time.Now().Add(1 * time.Second))
 		}
-		
+
 		conn, err := listener.Accept()
 		if err != nil {
 			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
@@ -384,7 +384,7 @@ func (tm *TunnelManager) handleSOCKSConnections(ctx context.Context, listener ne
 			tm.logger.Error("failed to accept SOCKS connection", "error", err)
 			continue
 		}
-		
+
 		tm.wg.Add(1)
 		go tm.handleSOCKSConnection(ctx, conn)
 	}
@@ -394,11 +394,11 @@ func (tm *TunnelManager) handleSOCKSConnections(ctx context.Context, listener ne
 func (tm *TunnelManager) handleSOCKSConnection(ctx context.Context, conn net.Conn) {
 	defer tm.wg.Done()
 	defer conn.Close()
-	
+
 	// Track connection
 	tm.connections.Store(conn, true)
 	defer tm.connections.Delete(conn)
-	
+
 	// Update statistics
 	tm.updateStats(func(stats *models.SessionStats) {
 		stats.TotalConnections++
@@ -407,11 +407,11 @@ func (tm *TunnelManager) handleSOCKSConnection(ctx context.Context, conn net.Con
 	defer tm.updateStats(func(stats *models.SessionStats) {
 		stats.ActiveConnections--
 	})
-	
+
 	// Handle SOCKS protocol
 	var targetAddr string
 	var err error
-	
+
 	switch tm.config.SOCKSVersion {
 	case 4:
 		targetAddr, err = tm.handleSOCKS4(conn)
@@ -424,7 +424,7 @@ func (tm *TunnelManager) handleSOCKSConnection(ctx context.Context, conn net.Con
 		})
 		return
 	}
-	
+
 	if err != nil {
 		tm.logger.Error("SOCKS protocol error", "error", err)
 		tm.updateStats(func(stats *models.SessionStats) {
@@ -432,7 +432,7 @@ func (tm *TunnelManager) handleSOCKSConnection(ctx context.Context, conn net.Con
 		})
 		return
 	}
-	
+
 	// Establish SSH connection to target
 	sshClient := tm.sshClient.GetClient()
 	if sshClient == nil {
@@ -442,11 +442,11 @@ func (tm *TunnelManager) handleSOCKSConnection(ctx context.Context, conn net.Con
 		})
 		return
 	}
-	
+
 	targetConn, err := sshClient.Dial("tcp", targetAddr)
 	if err != nil {
-		tm.logger.Error("failed to connect to target", 
-			"target_addr", targetAddr, 
+		tm.logger.Error("failed to connect to target",
+			"target_addr", targetAddr,
 			"error", err)
 		tm.updateStats(func(stats *models.SessionStats) {
 			stats.FailedConnections++
@@ -454,11 +454,11 @@ func (tm *TunnelManager) handleSOCKSConnection(ctx context.Context, conn net.Con
 		return
 	}
 	defer targetConn.Close()
-	
-	tm.logger.Debug("established SOCKS connection", 
+
+	tm.logger.Debug("established SOCKS connection",
 		"client_addr", conn.RemoteAddr(),
 		"target_addr", targetAddr)
-	
+
 	// Start bidirectional data transfer
 	tm.transfer(conn, targetConn)
 }
@@ -466,7 +466,7 @@ func (tm *TunnelManager) handleSOCKSConnection(ctx context.Context, conn net.Con
 // transfer handles bidirectional data transfer between two connections
 func (tm *TunnelManager) transfer(conn1, conn2 net.Conn) {
 	var wg sync.WaitGroup
-	
+
 	// Transfer data from conn1 to conn2
 	wg.Add(1)
 	go func() {
@@ -482,7 +482,7 @@ func (tm *TunnelManager) transfer(conn1, conn2 net.Conn) {
 		}
 		conn2.Close()
 	}()
-	
+
 	// Transfer data from conn2 to conn1
 	wg.Add(1)
 	go func() {
@@ -498,7 +498,7 @@ func (tm *TunnelManager) transfer(conn1, conn2 net.Conn) {
 		}
 		conn1.Close()
 	}()
-	
+
 	wg.Wait()
 }
 
@@ -510,7 +510,7 @@ func (tm *TunnelManager) copyData(dst, src net.Conn) (int64, error) {
 		src.SetReadDeadline(deadline)
 		dst.SetWriteDeadline(deadline)
 	}
-	
+
 	return io.Copy(dst, src)
 }
 

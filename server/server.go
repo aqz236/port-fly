@@ -176,6 +176,29 @@ func (s *Server) setupRoutes() {
 			hosts.POST("/:id/execute", h.ExecuteSSHCommand)
 		}
 
+		// Ports
+		ports := api.Group("/ports")
+		{
+			ports.GET("", h.GetPorts)
+			ports.POST("", h.CreatePort)
+			ports.GET("/:id", h.GetPort)
+			ports.PUT("/:id", h.UpdatePort)
+			ports.DELETE("/:id", h.DeletePort)
+			ports.GET("/:id/stats", h.GetPortStats)
+			ports.GET("/search", h.SearchPorts)
+
+			// Port control endpoints
+			ports.POST("/:id/test", h.TestPortConnection)
+			ports.PUT("/:id/status", h.UpdatePortStatus)
+		}
+
+		// Port Connections (Forward management)
+		portConnections := api.Group("/port-connections")
+		{
+			portConnections.POST("", h.CreatePortForward)
+			portConnections.DELETE("/:id", h.RemovePortForward)
+		}
+
 		// Tunnel Sessions
 		sessions := api.Group("/sessions")
 		{

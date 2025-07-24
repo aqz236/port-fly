@@ -28,7 +28,7 @@ func (p *PasswordAuthProvider) GetAuthMethods(config models.SSHConnectionConfig)
 	if config.Password == "" {
 		return nil, fmt.Errorf("password is required for password authentication")
 	}
-	
+
 	return []ssh.AuthMethod{
 		ssh.Password(config.Password),
 	}, nil
@@ -55,7 +55,7 @@ func NewPrivateKeyAuthProvider() *PrivateKeyAuthProvider {
 func (p *PrivateKeyAuthProvider) GetAuthMethods(config models.SSHConnectionConfig) ([]ssh.AuthMethod, error) {
 	var signer ssh.Signer
 	var err error
-	
+
 	// Try to load from provided key data first
 	if len(config.PrivateKeyData) > 0 {
 		signer, err = p.cryptoUtils.LoadPrivateKey(config.PrivateKeyData, config.Passphrase)
@@ -74,7 +74,7 @@ func (p *PrivateKeyAuthProvider) GetAuthMethods(config models.SSHConnectionConfi
 		if len(availableKeys) == 0 {
 			return nil, fmt.Errorf("no private keys found")
 		}
-		
+
 		// Try each available key
 		for _, keyPath := range availableKeys {
 			signer, err = p.cryptoUtils.LoadPrivateKeyFromFile(keyPath, config.Passphrase)
@@ -82,12 +82,12 @@ func (p *PrivateKeyAuthProvider) GetAuthMethods(config models.SSHConnectionConfi
 				break
 			}
 		}
-		
+
 		if signer == nil {
 			return nil, fmt.Errorf("failed to load any available private keys")
 		}
 	}
-	
+
 	return []ssh.AuthMethod{
 		ssh.PublicKeys(signer),
 	}, nil
@@ -107,14 +107,14 @@ func (a *AgentAuthProvider) GetAuthMethods(config models.SSHConnectionConfig) ([
 	if socket == "" {
 		return nil, fmt.Errorf("SSH_AUTH_SOCK environment variable not set")
 	}
-	
+
 	conn, err := net.Dial("unix", socket)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to SSH agent: %w", err)
 	}
-	
+
 	agentClient := agent.NewClient(conn)
-	
+
 	return []ssh.AuthMethod{
 		ssh.PublicKeysCallback(agentClient.Signers),
 	}, nil
@@ -142,7 +142,7 @@ func (i *InteractiveAuthProvider) GetAuthMethods(config models.SSHConnectionConf
 	if i.challengeHandler == nil {
 		return nil, fmt.Errorf("no challenge handler provided for interactive authentication")
 	}
-	
+
 	return []ssh.AuthMethod{
 		ssh.KeyboardInteractive(i.challengeHandler),
 	}, nil
@@ -180,31 +180,31 @@ func (am *AuthManager) GetAuthMethods(config models.SSHConnectionConfig) ([]ssh.
 	if !exists {
 		return nil, fmt.Errorf("unsupported authentication method: %s", config.AuthMethod)
 	}
-	
+
 	return provider.GetAuthMethods(config)
 }
 
 // GetAllAuthMethods tries all available authentication methods
 func (am *AuthManager) GetAllAuthMethods(config models.SSHConnectionConfig) []ssh.AuthMethod {
 	var allMethods []ssh.AuthMethod
-	
+
 	// Try authentication methods in order of preference
 	authOrder := []models.AuthMethod{
 		models.AuthMethodAgent,      // SSH agent (if available)
 		models.AuthMethodPrivateKey, // Private key
 		models.AuthMethodPassword,   // Password (least secure)
 	}
-	
+
 	for _, method := range authOrder {
 		tempConfig := config
 		tempConfig.AuthMethod = method
-		
+
 		methods, err := am.GetAuthMethods(tempConfig)
 		if err == nil {
 			allMethods = append(allMethods, methods...)
 		}
 	}
-	
+
 	return allMethods
 }
 
@@ -219,21 +219,21 @@ func (am *AuthManager) HostKeyCallback(policy string, knownHostsFile string) (ss
 			}
 			knownHostsFile = filepath.Join(homeDir, ".ssh", "known_hosts")
 		}
-		
+
 		callback, err := knownhosts.New(knownHostsFile)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load known hosts: %w", err)
 		}
 		return callback, nil
-		
+
 	case "accept":
 		// Accept all host keys (insecure)
 		return ssh.InsecureIgnoreHostKey(), nil
-		
+
 	case "ask":
 		// Interactive host key verification
 		return am.createInteractiveHostKeyCallback(knownHostsFile), nil
-		
+
 	default:
 		return nil, fmt.Errorf("unknown host key policy: %s", policy)
 	}
@@ -245,13 +245,13 @@ func (am *AuthManager) createInteractiveHostKeyCallback(knownHostsFile string) s
 		// In a real implementation, this would prompt the user
 		// For now, we'll accept and save the key
 		fingerprint := ssh.FingerprintSHA256(key)
-		
+
 		// TODO: Implement interactive prompt
 		// For now, automatically accept and save
 		if knownHostsFile != "" {
 			return am.saveHostKey(knownHostsFile, hostname, key)
 		}
-		
+
 		// Log the fingerprint for security
 		fmt.Printf("Warning: Accepting host key for %s: %s\n", hostname, fingerprint)
 		return nil
@@ -265,21 +265,21 @@ func (am *AuthManager) saveHostKey(knownHostsFile, hostname string, key ssh.Publ
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
-	
+
 	// Format the host key entry
 	keyLine := fmt.Sprintf("%s %s\n", hostname, string(ssh.MarshalAuthorizedKey(key)))
-	
+
 	// Append to known_hosts file
 	file, err := os.OpenFile(knownHostsFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		return fmt.Errorf("failed to open known_hosts file: %w", err)
 	}
 	defer file.Close()
-	
+
 	if _, err := file.WriteString(keyLine); err != nil {
 		return fmt.Errorf("failed to write host key: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -288,15 +288,15 @@ func (am *AuthManager) ValidateConfig(config models.SSHConnectionConfig) error {
 	if config.Host == "" {
 		return fmt.Errorf("host is required")
 	}
-	
+
 	if config.Port <= 0 || config.Port > 65535 {
 		return fmt.Errorf("invalid port: %d", config.Port)
 	}
-	
+
 	if config.Username == "" {
 		return fmt.Errorf("username is required")
 	}
-	
+
 	switch config.AuthMethod {
 	case models.AuthMethodPassword:
 		if config.Password == "" {
@@ -313,6 +313,6 @@ func (am *AuthManager) ValidateConfig(config models.SSHConnectionConfig) error {
 	default:
 		return fmt.Errorf("unsupported authentication method: %s", config.AuthMethod)
 	}
-	
+
 	return nil
 }

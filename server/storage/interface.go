@@ -45,6 +45,27 @@ type StorageInterface interface {
 	GetHostStats(ctx context.Context, hostID uint) (*models.HostStats, error)
 	SearchHosts(ctx context.Context, query string) ([]models.Host, error)
 
+	// ===== Port Operations =====
+	CreatePort(ctx context.Context, port *models.Port) error
+	GetPort(ctx context.Context, id uint) (*models.Port, error)
+	GetPorts(ctx context.Context) ([]models.Port, error)
+	GetPortsByGroup(ctx context.Context, groupID uint) ([]models.Port, error)
+	GetPortsByHost(ctx context.Context, hostID uint) ([]models.Port, error)
+	UpdatePort(ctx context.Context, port *models.Port) error
+	DeletePort(ctx context.Context, id uint) error
+	GetPortStats(ctx context.Context, portID uint) (*models.PortStats, error)
+	SearchPorts(ctx context.Context, query string) ([]models.Port, error)
+	UpdatePortStatus(ctx context.Context, portID uint, status models.PortStatus) error
+
+	// ===== Port Connection Operations =====
+	CreatePortConnection(ctx context.Context, connection *models.PortConnection) error
+	GetPortConnection(ctx context.Context, id uint) (*models.PortConnection, error)
+	GetPortConnections(ctx context.Context) ([]models.PortConnection, error)
+	GetActivePortConnections(ctx context.Context) ([]models.PortConnection, error)
+	UpdatePortConnection(ctx context.Context, connection *models.PortConnection) error
+	DeletePortConnection(ctx context.Context, id uint) error
+	GetPortConnectionByPorts(ctx context.Context, remotePortID, localPortID uint) (*models.PortConnection, error)
+
 	// ===== Tunnel Session Operations =====
 	CreateTunnelSession(ctx context.Context, session *models.TunnelSession) error
 	GetTunnelSession(ctx context.Context, id uint) (*models.TunnelSession, error)
