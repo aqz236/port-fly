@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"github.com/aqz236/port-fly/server"
+	_ "github.com/aqz236/port-fly/server/storage/sqlite" // Register SQLite storage
 )
 
 func main() {
